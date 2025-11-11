@@ -96,11 +96,44 @@ camera.position.set(
   -mazeSize / 2 * cellSize + cellSize / 2
 );
 
-// Exit
-const exitCell = { x: mazeSize - 1, z: mazeSize - 1 };
+// --- Find farthest cell for exit using BFS ---
+function findFarthestCell(startX, startZ) {
+  const distances = Array.from({length: mazeSize}, () => Array(mazeSize).fill(-1));
+  const queue = [[startX, startZ]];
+  distances[startX][startZ] = 0;
+  let maxDist = 0;
+  let farthest = [startX, startZ];
+
+  while (queue.length) {
+    const [x, z] = queue.shift();
+    const dist = distances[x][z];
+
+    if (dist > maxDist) {
+      maxDist = dist;
+      farthest = [x, z];
+    }
+
+    const neighbors = [];
+    if (!grid[x][z].walls.top && z > 0) neighbors.push([x, z-1]);
+    if (!grid[x][z].walls.bottom && z < mazeSize-1) neighbors.push([x, z+1]);
+    if (!grid[x][z].walls.left && x > 0) neighbors.push([x-1, z]);
+    if (!grid[x][z].walls.right && x < mazeSize-1) neighbors.push([x+1, z]);
+
+    for (const [nx, nz] of neighbors) {
+      if (distances[nx][nz] === -1) {
+        distances[nx][nz] = dist + 1;
+        queue.push([nx, nz]);
+      }
+    }
+  }
+
+  return farthest;
+}
+
+const [exitX, exitZ] = findFarthestCell(0, 0);
 const exitPos = {
-  x: (exitCell.x - mazeSize / 2) * cellSize + cellSize / 2,
-  z: (exitCell.z - mazeSize / 2) * cellSize + cellSize / 2
+  x: (exitX - mazeSize / 2) * cellSize + cellSize / 2,
+  z: (exitZ - mazeSize / 2) * cellSize + cellSize / 2
 };
 
 // Controls
@@ -150,8 +183,8 @@ function drawMiniMap() {
   const px = camera.position.x;
   const pz = camera.position.z;
 
-  // Correct rotation direction
-  mmCtx.rotate(camera.rotation.y);
+  // Rotate mini-map correctly with player
+  mmCtx.rotate(-camera.rotation.y);
 
   const viewCells = 3;
   const centerX = px;
@@ -180,16 +213,20 @@ function drawMiniMap() {
     }
   }
 
-  // Draw exit correctly
-  const exitDx = exitPos.x - px;
-  const exitDz = exitPos.z - pz;
-  const ex = exitDx / cellSize * scale;
-  const ez = exitDz / cellSize * scale;
+  // Draw exit correctly relative to player with rotation
+  let exitDx = exitPos.x - px;
+  let exitDz = exitPos.z - pz;
+
+  // Rotate exit coordinates with the map
+  const sin = Math.sin(-camera.rotation.y);
+  const cos = Math.cos(-camera.rotation.y);
+  const rotatedX = exitDx * cos - exitDz * sin;
+  const rotatedZ = exitDx * sin + exitDz * cos;
 
   if (Math.abs(exitDx) <= viewCells*cellSize && Math.abs(exitDz) <= viewCells*cellSize) {
     mmCtx.fillStyle = 'green';
     mmCtx.beginPath();
-    mmCtx.arc(ex, ez, 5, 0, Math.PI*2);
+    mmCtx.arc(rotatedX / cellSize * scale, rotatedZ / cellSize * scale, 5, 0, Math.PI*2);
     mmCtx.fill();
   }
 
