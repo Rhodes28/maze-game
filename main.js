@@ -160,21 +160,9 @@ const tracks = [
 ];
 const audio = new Audio();
 audio.src = tracks[Math.floor(Math.random() * tracks.length)];
-audio.volume = 0.2;
+audio.volume = 0.3;
 audio.loop = true;
-audio.play().catch(e => console.log("Autoplay blocked, click to start music"));
-
-// Optional click-to-start button if autoplay is blocked
-const btn = document.createElement('button');
-btn.innerText = "Start Music";
-btn.style.position = "absolute";
-btn.style.top = "10px";
-btn.style.left = "10px";
-document.body.appendChild(btn);
-btn.addEventListener('click', () => {
-    audio.play();
-    btn.style.display = 'none';
-});
+audio.play().catch(e => console.log("Autoplay blocked by browser"));
 
 // Animation loop
 function animate(){
@@ -192,12 +180,11 @@ function animate(){
   if(keys['d']){ const pos=newPos.clone().add(right.clone().multiplyScalar(moveSpeed)); if(!checkCollision(pos)) newPos.copy(pos); }
   camera.position.copy(newPos);
 
-  // Win
+  // Win detection - auto-reload
   const dx = camera.position.x - exitPos.x;
   const dz = camera.position.z - exitPos.z;
-  if(Math.sqrt(dx*dx + dz*dz)<0.5){ 
-    alert("You escaped."); 
-    window.location.reload(); 
+  if(Math.sqrt(dx*dx + dz*dz) < 0.5){
+      window.location.reload();
   }
 
   renderer.render(scene,camera);
