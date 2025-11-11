@@ -13,8 +13,16 @@
     </style>
   </head>
   <body>
-    <!-- Load local copy instead of remote CDN -->
-    <script src="three.min.js"></script>
-    <script src="main.js"></script>
+    <!-- Importmap defines where to load THREE from -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+    </script>
+
+    <!-- Main script uses ES modules -->
+    <script type="module" src="main.js"></script>
   </body>
 </html>
