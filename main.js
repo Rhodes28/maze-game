@@ -4,7 +4,13 @@ import * as THREE from "three";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -21,8 +27,12 @@ const MAZE_HEIGHT = 15;
 const CELL_SIZE = 4;
 
 function generateMaze(w, h) {
-  const maze = Array(h).fill().map(() => Array(w).fill(0));
-  const visited = Array(h).fill().map(() => Array(w).fill(false));
+  const maze = Array(h)
+    .fill()
+    .map(() => Array(w).fill(0));
+  const visited = Array(h)
+    .fill()
+    .map(() => Array(w).fill(false));
 
   function carve(x, y) {
     visited[y][x] = true;
@@ -30,7 +40,7 @@ function generateMaze(w, h) {
       [1, 0],
       [-1, 0],
       [0, 1],
-      [0, -1]
+      [0, -1],
     ].sort(() => Math.random() - 0.5);
 
     for (const [dx, dy] of dirs) {
@@ -51,7 +61,7 @@ function generateMaze(w, h) {
 
 const maze = generateMaze(MAZE_WIDTH, MAZE_HEIGHT);
 
-// === Build Maze in 3D ===
+// === Build Maze Walls ===
 const wallGeo = new THREE.BoxGeometry(CELL_SIZE, CELL_SIZE, CELL_SIZE);
 const wallMat = new THREE.MeshLambertMaterial({ color: 0x006600 });
 
@@ -79,8 +89,9 @@ scene.add(floor);
 // === Player ===
 camera.position.set(0, 2, 0);
 let yaw = 0;
-let speed = 0.1;
+const moveSpeed = 0.15;
 
+// === Input Handling ===
 const keys = {};
 window.addEventListener("keydown", (e) => (keys[e.key.toLowerCase()] = true));
 window.addEventListener("keyup", (e) => (keys[e.key.toLowerCase()] = false));
@@ -92,15 +103,14 @@ function canMove(nx, nz) {
   return maze[my][mx] === 1;
 }
 
+// === Movement & Rotation ===
 function updateMovement() {
   let moveX = 0;
   let moveZ = 0;
 
-  // Forward/backward
+  // WASD Movement
   if (keys["w"]) moveZ -= 1;
   if (keys["s"]) moveZ += 1;
-
-  // Strafe left/right
   if (keys["a"]) moveX -= 1;
   if (keys["d"]) moveX += 1;
 
@@ -111,33 +121,29 @@ function updateMovement() {
     moveZ /= len;
   }
 
-  // Rotation with arrow keys
+  // Arrow keys rotate view
   if (keys["arrowleft"]) yaw += 0.05;
   if (keys["arrowright"]) yaw -= 0.05;
 
-  const dir = new THREE.Vector3(
-    Math.sin(yaw),
-    0,
-    Math.cos(yaw)
-  );
+  // Calculate movement direction
+  const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+  const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
 
-  const right = new THREE.Vector3(
-    Math.cos(yaw),
-    0,
-    -Math.sin(yaw)
-  );
-
+  // Compute next position
   const nx =
-    camera.position.x + (dir.x * moveZ + right.x * moveX) * speed * CELL_SIZE * 0.25;
+    camera.position.x +
+    (forward.x * moveZ + right.x * moveX) * moveSpeed * CELL_SIZE * 0.25;
   const nz =
-    camera.position.z + (dir.z * moveZ + right.z * moveX) * speed * CELL_SIZE * 0.25;
+    camera.position.z +
+    (forward.z * moveZ + right.z * moveX) * moveSpeed * CELL_SIZE * 0.25;
 
+  // Collision check
   if (canMove(nx, nz)) {
     camera.position.x = nx;
     camera.position.z = nz;
   }
 
-  // Camera direction
+  // Apply rotation
   camera.rotation.y = yaw;
 }
 
