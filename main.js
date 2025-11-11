@@ -31,13 +31,13 @@ const grid = [];
 for(let x=0;x<mazeSize;x++){
   grid[x] = [];
   for(let z=0;z<mazeSize;z++){
-    grid[x][z] = {visited:false,walls:{top:true,right:true,bottom:true,left:true}};
+    grid[x][z] = {visited:false, walls:{top:true,right:true,bottom:true,left:true}};
   }
 }
 
-// Maze generation: recursive backtracker
+// Maze generation
 function generateMaze(x,z){
-  grid[x][z].visited=true;
+  grid[x][z].visited = true;
   const dirs = ['top','right','bottom','left'].sort(()=>Math.random()-0.5);
   for(const dir of dirs){
     let nx=x,nz=z;
@@ -82,16 +82,15 @@ for(let x=0;x<mazeSize;x++){
 // Camera start
 camera.position.set(-mazeSize/2*cellSize + cellSize/2, 1.5, -mazeSize/2*cellSize + cellSize/2);
 
-// Find farthest cell for exit
-function findFarthestCell(startX,startZ){
+// Find farthest exit
+function findFarthestCell(sx,sz){
   const distances = Array.from({length:mazeSize},()=>Array(mazeSize).fill(-1));
-  const queue=[[startX,startZ]];
-  distances[startX][startZ]=0;
-  let farthest=[startX,startZ],maxDist=0;
-
+  const queue = [[sx,sz]];
+  distances[sx][sz]=0;
+  let farthest=[sx,sz],maxDist=0;
   while(queue.length){
-    const [x,z]=queue.shift();
-    const dist=distances[x][z];
+    const [x,z] = queue.shift();
+    const dist = distances[x][z];
     if(dist>maxDist){ maxDist=dist; farthest=[x,z]; }
     const neighbors=[];
     if(!grid[x][z].walls.top && z>0) neighbors.push([x,z-1]);
@@ -108,11 +107,8 @@ function findFarthestCell(startX,startZ){
   return farthest;
 }
 
-const [exitX,exitZ]=findFarthestCell(0,0);
-const exitPos={
-  x:(exitX-mazeSize/2)*cellSize + cellSize/2,
-  z:(exitZ-mazeSize/2)*cellSize + cellSize/2
-};
+const [exitX,exitZ] = findFarthestCell(0,0);
+const exitPos = { x:(exitX-mazeSize/2)*cellSize + cellSize/2, z:(exitZ-mazeSize/2)*cellSize + cellSize/2 };
 
 // Controls
 const moveSpeed=0.1, rotateSpeed=0.03, cameraRadius=0.3;
@@ -120,31 +116,31 @@ const keys={};
 document.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);
 document.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 
-// Collision detection
+// Collision
 function checkCollision(pos){
   for(const wall of walls){
-    const dx=Math.abs(pos.x-wall.position.x);
-    const dz=Math.abs(pos.z-wall.position.z);
-    const halfWidth=wall.geometry.parameters.width/2;
-    const halfDepth=wall.geometry.parameters.depth/2;
-    if(dx<halfWidth+cameraRadius && dz<halfDepth+cameraRadius) return true;
+    const dx = Math.abs(pos.x - wall.position.x);
+    const dz = Math.abs(pos.z - wall.position.z);
+    const hw = wall.geometry.parameters.width/2;
+    const hd = wall.geometry.parameters.depth/2;
+    if(dx<hw+cameraRadius && dz<hd+cameraRadius) return true;
   }
   return false;
 }
 
 // Mini-map setup
-const miniMap=document.createElement('canvas');
-miniMap.width=200;
-miniMap.height=200;
-miniMap.style.position='absolute';
-miniMap.style.top='10px';
-miniMap.style.right='10px';
-miniMap.style.border='2px solid black';
-miniMap.style.borderRadius='50%';
-miniMap.style.backgroundColor='white';
+const miniMap = document.createElement('canvas');
+miniMap.width = 200; miniMap.height = 200;
+miniMap.style.position = 'absolute';
+miniMap.style.top = '10px';
+miniMap.style.right = '10px';
+miniMap.style.border = '2px solid black';
+miniMap.style.borderRadius = '50%';
+miniMap.style.backgroundColor = 'white';
 document.body.appendChild(miniMap);
-const mmCtx=miniMap.getContext('2d');
+const mmCtx = miniMap.getContext('2d');
 
+// Draw mini-map
 function drawMiniMap(){
   const radius = miniMap.width/2;
   mmCtx.clearRect(0,0,miniMap.width,miniMap.height);
@@ -154,49 +150,54 @@ function drawMiniMap(){
   mmCtx.arc(0,0,radius,0,Math.PI*2);
   mmCtx.clip();
 
-  const scale=radius/3; // 3 cells radius
+  const scale = radius/3; // 3-cell radius
   const px=camera.position.x, pz=camera.position.z;
   const viewCells=3;
 
-  // Draw nearby cells
+  // Draw nearby cells relative to player
   for(let dx=-viewCells; dx<=viewCells; dx++){
     for(let dz=-viewCells; dz<=viewCells; dz++){
-      const worldX=px+dx*cellSize;
-      const worldZ=pz+dz*cellSize;
-      const gridX=Math.floor(worldX/cellSize + mazeSize/2);
-      const gridZ=Math.floor(worldZ/cellSize + mazeSize/2);
-      if(gridX<0 || gridX>=mazeSize || gridZ<0 || gridZ>=mazeSize) continue;
-      const cell=grid[gridX][gridZ];
-      const cx=dx*scale;
-      const cz=dz*scale;
+      const worldX = px + dx*cellSize;
+      const worldZ = pz + dz*cellSize;
+      const gx = Math.floor(worldX/cellSize + mazeSize/2);
+      const gz = Math.floor(worldZ/cellSize + mazeSize/2);
+      if(gx<0||gx>=mazeSize||gz<0||gz>=mazeSize) continue;
+      const cell = grid[gx][gz];
 
-      mmCtx.strokeStyle='black';
-      mmCtx.lineWidth=2;
-      if(cell.walls.top){ mmCtx.beginPath(); mmCtx.moveTo(cx-scale/2, cz-scale/2); mmCtx.lineTo(cx+scale/2, cz-scale/2); mmCtx.stroke(); }
-      if(cell.walls.bottom){ mmCtx.beginPath(); mmCtx.moveTo(cx-scale/2, cz+scale/2); mmCtx.lineTo(cx+scale/2, cz+scale/2); mmCtx.stroke(); }
-      if(cell.walls.left){ mmCtx.beginPath(); mmCtx.moveTo(cx-scale/2, cz-scale/2); mmCtx.lineTo(cx-scale/2, cz+scale/2); mmCtx.stroke(); }
-      if(cell.walls.right){ mmCtx.beginPath(); mmCtx.moveTo(cx+scale/2, cz-scale/2); mmCtx.lineTo(cx+scale/2, cz+scale/2); mmCtx.stroke(); }
+      // Rotate relative to camera
+      const relX = dx;
+      const relZ = dz;
+      const cos = Math.cos(-camera.rotation.y);
+      const sin = Math.sin(-camera.rotation.y);
+      const rx = relX*cos - relZ*sin;
+      const rz = relX*sin + relZ*cos;
+
+      const cx = rx*scale;
+      const cz = rz*scale;
+
+      mmCtx.strokeStyle='black'; mmCtx.lineWidth=2;
+      if(cell.walls.top){ mmCtx.beginPath(); mmCtx.moveTo(cx-scale/2,cz-scale/2); mmCtx.lineTo(cx+scale/2,cz-scale/2); mmCtx.stroke();}
+      if(cell.walls.bottom){ mmCtx.beginPath(); mmCtx.moveTo(cx-scale/2,cz+scale/2); mmCtx.lineTo(cx+scale/2,cz+scale/2); mmCtx.stroke();}
+      if(cell.walls.left){ mmCtx.beginPath(); mmCtx.moveTo(cx-scale/2,cz-scale/2); mmCtx.lineTo(cx-scale/2,cz+scale/2); mmCtx.stroke();}
+      if(cell.walls.right){ mmCtx.beginPath(); mmCtx.moveTo(cx+scale/2,cz-scale/2); mmCtx.lineTo(cx+scale/2,cz+scale/2); mmCtx.stroke();}
     }
   }
 
-  // Draw exit dot relative to player, rotated correctly
+  // Draw exit dot
   let relX = exitPos.x - px;
   let relZ = exitPos.z - pz;
-
-  // Apply rotation: map rotates same as player turning (forward = top)
-  const sin = Math.sin(camera.rotation.y);
-  const cos = Math.cos(camera.rotation.y);
-  const rotatedX = relX * cos + relZ * sin; // positive rotation matches camera
-  const rotatedZ = -relX * sin + relZ * cos;
-
-  if(Math.abs(rotatedX)<=viewCells*cellSize && Math.abs(rotatedZ)<=viewCells*cellSize){
+  const cos = Math.cos(-camera.rotation.y);
+  const sin = Math.sin(-camera.rotation.y);
+  const rx = relX* cos - relZ*sin;
+  const rz = relX* sin + relZ*cos;
+  if(Math.abs(rx)<=viewCells*cellSize && Math.abs(rz)<=viewCells*cellSize){
     mmCtx.fillStyle='green';
     mmCtx.beginPath();
-    mmCtx.arc(rotatedX/cellSize*scale, rotatedZ/cellSize*scale, 5, 0, Math.PI*2);
+    mmCtx.arc(rx/cellSize*scale, rz/cellSize*scale,5,0,Math.PI*2);
     mmCtx.fill();
   }
 
-  // Player dot always at center
+  // Player dot
   mmCtx.fillStyle='red';
   mmCtx.beginPath();
   mmCtx.arc(0,0,5,0,Math.PI*2);
@@ -212,24 +213,19 @@ function animate(){
   if(keys['arrowleft']) camera.rotation.y += rotateSpeed;
   if(keys['arrowright']) camera.rotation.y -= rotateSpeed;
 
-  const forward=new THREE.Vector3(-Math.sin(camera.rotation.y),0,-Math.cos(camera.rotation.y));
-  const right=new THREE.Vector3().crossVectors(forward,new THREE.Vector3(0,1,0));
-
-  let newPos=camera.position.clone();
+  const forward = new THREE.Vector3(-Math.sin(camera.rotation.y),0,-Math.cos(camera.rotation.y));
+  const right = new THREE.Vector3().crossVectors(forward,new THREE.Vector3(0,1,0));
+  let newPos = camera.position.clone();
   if(keys['w']){ const pos=newPos.clone().add(forward.clone().multiplyScalar(moveSpeed)); if(!checkCollision(pos)) newPos.copy(pos); }
   if(keys['s']){ const pos=newPos.clone().add(forward.clone().multiplyScalar(-moveSpeed)); if(!checkCollision(pos)) newPos.copy(pos); }
   if(keys['a']){ const pos=newPos.clone().add(right.clone().multiplyScalar(-moveSpeed)); if(!checkCollision(pos)) newPos.copy(pos); }
   if(keys['d']){ const pos=newPos.clone().add(right.clone().multiplyScalar(moveSpeed)); if(!checkCollision(pos)) newPos.copy(pos); }
-
   camera.position.copy(newPos);
 
-  // Win condition
-  const dx=camera.position.x-exitPos.x;
-  const dz=camera.position.z-exitPos.z;
-  if(Math.sqrt(dx*dx+dz*dz)<0.5){
-    alert("🎉 You reached the exit! You win!");
-    window.location.reload();
-  }
+  // Win
+  const dx = camera.position.x - exitPos.x;
+  const dz = camera.position.z - exitPos.z;
+  if(Math.sqrt(dx*dx + dz*dz)<0.5){ alert("You reached the exit!"); window.location.reload(); }
 
   drawMiniMap();
   renderer.render(scene,camera);
@@ -237,9 +233,9 @@ function animate(){
 
 // Resize
 window.addEventListener('resize',()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 animate();
