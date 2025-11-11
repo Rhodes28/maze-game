@@ -24,20 +24,20 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(5, 10, 7);
 scene.add(light);
 
+// Maze parameters
+const mazeSize = 20;
+const cellSize = 2;
+const wallThickness = 0.2;
+const walls = [];
+
 // Floor
-const floorSize = 30*2; // mazeSize*cellSize
+const floorSize = mazeSize * cellSize;
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(floorSize, floorSize),
   new THREE.MeshPhongMaterial({color: floorColor})
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
-
-// Maze parameters
-const mazeSize = 30;
-const cellSize = 2;
-const wallThickness = 0.2;
-const walls = [];
 
 // Grid
 const grid = [];
@@ -124,7 +124,7 @@ const [exitX,exitZ] = findFarthestCell(0,0);
 const exitPos = { x:(exitX-mazeSize/2)*cellSize + cellSize/2, z:(exitZ-mazeSize/2)*cellSize + cellSize/2 };
 
 // Create exit beacon
-const beaconHeight = 100;
+const beaconHeight = 60;
 const beaconGeometry = new THREE.CylinderGeometry(0.2,0.2,beaconHeight,16);
 const beaconMaterial = new THREE.MeshPhongMaterial({
   color: beaconColor,
@@ -160,13 +160,14 @@ const tracks = [
   '3.mp3'
 ];
 let audioStarted = false;
+let audio = null;
 
 // Start music on first movement keypress
 function startMusicOnMove(e){
     if(audioStarted) return;
     const movementKeys = ['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'];
     if(movementKeys.includes(e.key.toLowerCase())){
-        const audio = new Audio();
+        audio = new Audio();
         audio.src = tracks[Math.floor(Math.random() * tracks.length)];
         audio.volume = 0.2;
         audio.loop = true;
