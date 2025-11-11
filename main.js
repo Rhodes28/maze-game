@@ -143,69 +143,60 @@ function drawMiniMap() {
   mmCtx.save();
   mmCtx.translate(radius, radius);
   mmCtx.beginPath();
-  mmCtx.arc(0, 0, radius, 0, Math.PI * 2);
+  mmCtx.arc(0, 0, radius, 0, Math.PI*2);
   mmCtx.clip();
 
   const scale = radius / 3; // ~3 cells radius
   const px = camera.position.x;
   const pz = camera.position.z;
 
-  // Rotate map correctly with player (forward is up)
-  const angle = camera.rotation.y;
+  // Correct rotation direction
+  mmCtx.rotate(camera.rotation.y);
 
-  // Draw nearby cells
   const viewCells = 3;
   const centerX = px;
   const centerZ = pz;
 
+  // Draw nearby cells
   for (let dx = -viewCells; dx <= viewCells; dx++) {
     for (let dz = -viewCells; dz <= viewCells; dz++) {
       const worldX = centerX + dx * cellSize;
       const worldZ = centerZ + dz * cellSize;
 
-      const gridX = Math.floor(worldX / cellSize + mazeSize / 2);
-      const gridZ = Math.floor(worldZ / cellSize + mazeSize / 2);
+      const gridX = Math.floor(worldX / cellSize + mazeSize/2);
+      const gridZ = Math.floor(worldZ / cellSize + mazeSize/2);
       if (gridX < 0 || gridX >= mazeSize || gridZ < 0 || gridZ >= mazeSize) continue;
       const cell = grid[gridX][gridZ];
 
-      // Relative position before rotation
-      let cx = dx * scale;
-      let cz = dz * scale;
-
-      // Rotate point around center by -angle
-      const rotatedX = cx * Math.cos(-angle) - cz * Math.sin(-angle);
-      const rotatedZ = cx * Math.sin(-angle) + cz * Math.cos(-angle);
-      cx = rotatedX;
-      cz = rotatedZ;
+      const cx = dx * scale;
+      const cz = dz * scale;
 
       mmCtx.strokeStyle = 'black';
       mmCtx.lineWidth = 2;
-      if (cell.walls.top) { mmCtx.beginPath(); mmCtx.moveTo(cx - scale / 2, cz - scale / 2); mmCtx.lineTo(cx + scale / 2, cz - scale / 2); mmCtx.stroke(); }
-      if (cell.walls.bottom) { mmCtx.beginPath(); mmCtx.moveTo(cx - scale / 2, cz + scale / 2); mmCtx.lineTo(cx + scale / 2, cz + scale / 2); mmCtx.stroke(); }
-      if (cell.walls.left) { mmCtx.beginPath(); mmCtx.moveTo(cx - scale / 2, cz - scale / 2); mmCtx.lineTo(cx - scale / 2, cz + scale / 2); mmCtx.stroke(); }
-      if (cell.walls.right) { mmCtx.beginPath(); mmCtx.moveTo(cx + scale / 2, cz - scale / 2); mmCtx.lineTo(cx + scale / 2, cz + scale / 2); mmCtx.stroke(); }
+      if (cell.walls.top) { mmCtx.beginPath(); mmCtx.moveTo(cx - scale/2, cz - scale/2); mmCtx.lineTo(cx + scale/2, cz - scale/2); mmCtx.stroke(); }
+      if (cell.walls.bottom) { mmCtx.beginPath(); mmCtx.moveTo(cx - scale/2, cz + scale/2); mmCtx.lineTo(cx + scale/2, cz + scale/2); mmCtx.stroke(); }
+      if (cell.walls.left) { mmCtx.beginPath(); mmCtx.moveTo(cx - scale/2, cz - scale/2); mmCtx.lineTo(cx - scale/2, cz + scale/2); mmCtx.stroke(); }
+      if (cell.walls.right) { mmCtx.beginPath(); mmCtx.moveTo(cx + scale/2, cz - scale/2); mmCtx.lineTo(cx + scale/2, cz + scale/2); mmCtx.stroke(); }
     }
   }
 
-  // Draw exit dot correctly rotated
-  let ex = exitPos.x - px;
-  let ez = exitPos.z - pz;
-  const rotatedEx = ex * Math.cos(-angle) - ez * Math.sin(-angle);
-  const rotatedEz = ex * Math.sin(-angle) + ez * Math.cos(-angle);
-  ex = rotatedEx / cellSize * scale;
-  ez = rotatedEz / cellSize * scale;
+  // Draw exit correctly
+  const exitDx = exitPos.x - px;
+  const exitDz = exitPos.z - pz;
+  const ex = exitDx / cellSize * scale;
+  const ez = exitDz / cellSize * scale;
 
-  if (Math.abs(ex) <= viewCells * scale && Math.abs(ez) <= viewCells * scale) {
+  if (Math.abs(exitDx) <= viewCells*cellSize && Math.abs(exitDz) <= viewCells*cellSize) {
     mmCtx.fillStyle = 'green';
     mmCtx.beginPath();
-    mmCtx.arc(ex, ez, 5, 0, Math.PI * 2);
+    mmCtx.arc(ex, ez, 5, 0, Math.PI*2);
     mmCtx.fill();
   }
 
-  // Draw player dot at center
+  // Draw player at center
   mmCtx.fillStyle = 'red';
   mmCtx.beginPath();
-  mmCtx.arc(0, 0, 5, 0, Math.PI * 2);
+  mmCtx.arc(0, 0, 5, 0, Math.PI*2);
   mmCtx.fill();
 
   mmCtx.restore();
@@ -219,7 +210,7 @@ function animate() {
   if (keys['arrowright']) camera.rotation.y -= rotateSpeed;
 
   const forward = new THREE.Vector3(-Math.sin(camera.rotation.y), 0, -Math.cos(camera.rotation.y));
-  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0));
 
   let newPos = camera.position.clone();
   if (keys['w']) { const pos = newPos.clone().add(forward.clone().multiplyScalar(moveSpeed)); if (!checkCollision(pos)) newPos.copy(pos); }
@@ -232,7 +223,7 @@ function animate() {
   // Win condition
   const dx = camera.position.x - exitPos.x;
   const dz = camera.position.z - exitPos.z;
-  if (Math.sqrt(dx * dx + dz * dz) < 0.5) {
+  if (Math.sqrt(dx*dx + dz*dz) < 0.5) {
     alert("🎉 You reached the exit! You win!");
     window.location.reload();
   }
@@ -243,7 +234,7 @@ function animate() {
 
 // Resize
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
