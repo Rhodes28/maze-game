@@ -76,7 +76,7 @@ function addWall(x, z, width, depth) {
   walls.push(wall);
 }
 
-// Place walls according to grid
+// Place walls
 for (let x = 0; x < mazeSize; x++) {
   for (let z = 0; z < mazeSize; z++) {
     const cell = grid[x][z];
@@ -125,37 +125,46 @@ function checkCollision(pos) {
 }
 
 // Mini-map
+const miniMap = document.createElement('canvas');
+miniMap.width = 200;
+miniMap.height = 200;
+miniMap.style.position = 'absolute';
+miniMap.style.top = '10px';
+miniMap.style.right = '10px';
+miniMap.style.border = '2px solid black';
+miniMap.style.borderRadius = '50%';
+miniMap.style.backgroundColor = 'white';
+document.body.appendChild(miniMap);
+const mmCtx = miniMap.getContext('2d');
+
 function drawMiniMap() {
   const radius = miniMap.width / 2;
   mmCtx.clearRect(0, 0, miniMap.width, miniMap.height);
-  
   mmCtx.save();
   mmCtx.translate(radius, radius);
-  
-  // Rotate map so camera direction is "up"
-  mmCtx.rotate(-camera.rotation.y);
-
-  // Clip to circle
   mmCtx.beginPath();
-  mmCtx.arc(0, 0, radius, 0, Math.PI * 2);
+  mmCtx.arc(0, 0, radius, 0, Math.PI*2);
   mmCtx.clip();
 
-  const scale = radius / 3; // ~3 cells visible radius
+  const scale = radius / 3; // ~3 cells radius
   const px = camera.position.x;
   const pz = camera.position.z;
+
+  // Rotate mini-map with player
+  mmCtx.rotate(-camera.rotation.y);
 
   const viewCells = 3;
   const centerX = px;
   const centerZ = pz;
 
-  // Draw surrounding cells relative to player
+  // Draw nearby cells
   for (let dx = -viewCells; dx <= viewCells; dx++) {
     for (let dz = -viewCells; dz <= viewCells; dz++) {
       const worldX = centerX + dx * cellSize;
       const worldZ = centerZ + dz * cellSize;
 
-      const gridX = Math.floor(worldX / cellSize + mazeSize / 2);
-      const gridZ = Math.floor(worldZ / cellSize + mazeSize / 2);
+      const gridX = Math.floor(worldX / cellSize + mazeSize/2);
+      const gridZ = Math.floor(worldZ / cellSize + mazeSize/2);
       if (gridX < 0 || gridX >= mazeSize || gridZ < 0 || gridZ >= mazeSize) continue;
       const cell = grid[gridX][gridZ];
 
@@ -174,22 +183,21 @@ function drawMiniMap() {
   // Draw exit if visible
   const ex = exitPos.x - px;
   const ez = exitPos.z - pz;
-  if (Math.abs(ex) <= viewCells * cellSize && Math.abs(ez) <= viewCells * cellSize) {
+  if (Math.abs(ex) <= viewCells*cellSize && Math.abs(ez) <= viewCells*cellSize) {
     mmCtx.fillStyle = 'green';
     mmCtx.beginPath();
-    mmCtx.arc(ex / cellSize * scale, ez / cellSize * scale, 5, 0, Math.PI * 2);
+    mmCtx.arc(ex / cellSize * scale, ez / cellSize * scale, 5, 0, Math.PI*2);
     mmCtx.fill();
   }
 
-  // Player dot at center
+  // Draw player dot at center
   mmCtx.fillStyle = 'red';
   mmCtx.beginPath();
-  mmCtx.arc(0, 0, 5, 0, Math.PI * 2);
+  mmCtx.arc(0, 0, 5, 0, Math.PI*2);
   mmCtx.fill();
 
   mmCtx.restore();
 }
-
 
 // Animation loop
 function animate() {
@@ -213,7 +221,7 @@ function animate() {
   const dx = camera.position.x - exitPos.x;
   const dz = camera.position.z - exitPos.z;
   if (Math.sqrt(dx*dx + dz*dz) < 0.5) {
-    alert("You reached the exit!");
+    alert("🎉 You reached the exit! You win!");
     window.location.reload();
   }
 
