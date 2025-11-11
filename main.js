@@ -94,12 +94,19 @@ for (let x = 0; x < mazeSize; x++) {
   }
 }
 
-// Start camera in the first cell (ensure it's empty)
+// Start camera in the first cell
 camera.position.set(
   -mazeSize / 2 * cellSize + cellSize / 2,
   1.5,
   -mazeSize / 2 * cellSize + cellSize / 2
 );
+
+// Exit position (bottom-right cell)
+const exitCell = { x: mazeSize - 1, z: mazeSize - 1 };
+const exitPos = {
+  x: (exitCell.x - mazeSize / 2) * cellSize + cellSize / 2,
+  z: (exitCell.z - mazeSize / 2) * cellSize + cellSize / 2
+};
 
 // Controls
 const moveSpeed = 0.1;
@@ -125,6 +132,75 @@ function checkCollision(pos) {
   return false;
 }
 
+// Mini-map canvas
+const miniMap = document.createElement('canvas');
+miniMap.width = 200;
+miniMap.height = 200;
+miniMap.style.position = 'absolute';
+miniMap.style.top = '10px';
+miniMap.style.right = '10px';
+miniMap.style.border = '2px solid black';
+miniMap.style.backgroundColor = 'white';
+document.body.appendChild(miniMap);
+const mmCtx = miniMap.getContext('2d');
+
+function drawMiniMap() {
+  mmCtx.clearRect(0, 0, miniMap.width, miniMap.height);
+  const scale = miniMap.width / mazeSize;
+
+  // Draw maze walls
+  for (let x = 0; x < mazeSize; x++) {
+    for (let z = 0; z < mazeSize; z++) {
+      const cell = grid[x][z];
+      const px = x * scale;
+      const pz = z * scale;
+      mmCtx.strokeStyle = 'black';
+      mmCtx.lineWidth = 2;
+
+      if (cell.walls.top) {
+        mmCtx.beginPath();
+        mmCtx.moveTo(px, pz);
+        mmCtx.lineTo(px + scale, pz);
+        mmCtx.stroke();
+      }
+      if (cell.walls.bottom) {
+        mmCtx.beginPath();
+        mmCtx.moveTo(px, pz + scale);
+        mmCtx.lineTo(px + scale, pz + scale);
+        mmCtx.stroke();
+      }
+      if (cell.walls.left) {
+        mmCtx.beginPath();
+        mmCtx.moveTo(px, pz);
+        mmCtx.lineTo(px, pz + scale);
+        mmCtx.stroke();
+      }
+      if (cell.walls.right) {
+        mmCtx.beginPath();
+        mmCtx.moveTo(px + scale, pz);
+        mmCtx.lineTo(px + scale, pz + scale);
+        mmCtx.stroke();
+      }
+    }
+  }
+
+  // Draw player
+  const playerX = ((camera.position.x + mazeSize / 2 * cellSize - cellSize / 2) / cellSize) * scale;
+  const playerZ = ((camera.position.z + mazeSize / 2 * cellSize - cellSize / 2) / cellSize) * scale;
+  mmCtx.fillStyle = 'red';
+  mmCtx.beginPath();
+  mmCtx.arc(playerX, playerZ, 5, 0, Math.PI * 2);
+  mmCtx.fill();
+
+  // Draw exit
+  mmCtx.fillStyle = 'green';
+  const exitX = exitCell.x * scale + scale / 2;
+  const exitZ = exitCell.z * scale + scale / 2;
+  mmCtx.beginPath();
+  mmCtx.arc(exitX, exitZ, 5, 0, Math.PI * 2);
+  mmCtx.fill();
+}
+
 // Animation loop
 function animate() {
   requestAnimationFrame(animate);
@@ -133,10 +209,9 @@ function animate() {
   if (keys['arrowleft']) camera.rotation.y += rotateSpeed;
   if (keys['arrowright']) camera.rotation.y -= rotateSpeed;
 
-  // Movement vectors
+  // Movement
   const forward = new THREE.Vector3(-Math.sin(camera.rotation.y), 0, -Math.cos(camera.rotation.y));
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
-
   let newPos = camera.position.clone();
 
   if (keys['w']) {
@@ -157,6 +232,16 @@ function animate() {
   }
 
   camera.position.copy(newPos);
+
+  // Check win condition
+  const dx = camera.position.x - exitPos.x;
+  const dz = camera.position.z - exitPos.z;
+  if (Math.sqrt(dx*dx + dz*dz) < 0.5) {
+    alert("🎉 You reached the exit! You win!");
+    window.location.reload(); // restart maze
+  }
+
+  drawMiniMap();
   renderer.render(scene, camera);
 }
 
