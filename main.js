@@ -1,52 +1,149 @@
 import * as THREE from "three";
 
-// === Basic scene setup ===
+// === Basic Scene Setup ===
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-camera.position.set(0, 5, 10);
-camera.lookAt(0, 0, 0);
-
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // === Lighting ===
-const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-scene.add(ambient);
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(10, 10, 10);
+scene.add(dirLight);
 
-const directional = new THREE.DirectionalLight(0xffffff, 1);
-directional.position.set(10, 10, 10);
-scene.add(directional);
+// === Maze Generation ===
+const MAZE_WIDTH = 15;
+const MAZE_HEIGHT = 15;
+const CELL_SIZE = 4;
 
-// === Test cube ===
-const cubeGeo = new THREE.BoxGeometry(2, 2, 2);
-const cubeMat = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
-const cube = new THREE.Mesh(cubeGeo, cubeMat);
-scene.add(cube);
+function generateMaze(w, h) {
+  const maze = Array(h).fill().map(() => Array(w).fill(0));
+  const visited = Array(h).fill().map(() => Array(w).fill(false));
+
+  function carve(x, y) {
+    visited[y][x] = true;
+    const dirs = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ].sort(() => Math.random() - 0.5);
+
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx * 2;
+      const ny = y + dy * 2;
+      if (ny >= 0 && ny < h && nx >= 0 && nx < w && !visited[ny][nx]) {
+        maze[y + dy][x + dx] = 1; // path
+        maze[ny][nx] = 1;
+        carve(nx, ny);
+      }
+    }
+  }
+
+  maze[0][0] = 1;
+  carve(0, 0);
+  return maze;
+}
+
+const maze = generateMaze(MAZE_WIDTH, MAZE_HEIGHT);
+
+// === Build Maze in 3D ===
+const wallGeo = new THREE.BoxGeometry(CELL_SIZE, CELL_SIZE, CELL_SIZE);
+const wallMat = new THREE.MeshLambertMaterial({ color: 0x008800 });
+
+for (let y = 0; y < MAZE_HEIGHT; y++) {
+  for (let x = 0; x < MAZE_WIDTH; x++) {
+    if (maze[y][x] === 0) {
+      const wall = new THREE.Mesh(wallGeo, wallMat);
+      wall.position.set(
+        (x - MAZE_WIDTH / 2) * CELL_SIZE,
+        CELL_SIZE / 2,
+        (y - MAZE_HEIGHT / 2) * CELL_SIZE
+      );
+      scene.add(wall);
+    }
+  }
+}
 
 // === Floor ===
-const floorGeo = new THREE.PlaneGeometry(100, 100);
+const floorGeo = new THREE.PlaneGeometry(MAZE_WIDTH * CELL_SIZE, MAZE_HEIGHT * CELL_SIZE);
 const floorMat = new THREE.MeshLambertMaterial({ color: 0x404040 });
 const floor = new THREE.Mesh(floorGeo, floorMat);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// === Animate ===
+// === Player ===
+const player = {
+  x: 0,
+  y: 0,
+  speed: 0.1
+};
+camera.position.set(0, 2, 0);
+camera.lookAt(0, 2, -1);
+
+// === Movement Controls ===
+const keys = {};
+window.addEventListener("keydown", (e) => (keys[e.key.toLowerCase()] = true));
+window.addEventListener("keyup", (e) => (keys[e.key.toLowerCase()] = false));
+
+function canMove(nx, nz) {
+  const mx = Math.round(nx / CELL_SIZE + MAZE_WIDTH / 2);
+  const my = Math.round(nz / CELL_SIZE + MAZE_HEIGHT / 2);
+  if (my < 0 || my >= MAZE_HEIGHT || mx < 0 || mx >= MAZE_WIDTH) return false;
+  return maze[my][mx] === 1;
+}
+
+function updateMovement() {
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+
+  let dx = 0;
+  let dz = 0;
+
+  if (keys["w"] || keys["arrowup"]) dz -= player.speed;
+  if (keys["s"] || keys["arrowdown"]) dz += player.speed;
+  if (keys["a"] || keys["arrowleft"]) dx -= player.speed;
+  if (keys["d"] || keys["arrowright"]) dx += player.speed;
+
+  const nx = camera.position.x + dir.x * dz + right.x * dx;
+  const nz = camera.position.z + dir.z * dz + right.z * dx;
+
+  if (canMove(nx, nz)) {
+    camera.position.x = nx;
+    camera.position.z = nz;
+  }
+}
+
+// === Mouse Look ===
+let yaw = 0;
+window.addEventListener("mousemove", (e) => {
+  if (document.pointerLockElement === document.body) {
+    yaw -= e.movementX * 0.002;
+  }
+});
+document.body.addEventListener("click", () => {
+  document.body.requestPointerLock();
+});
+
+function updateCameraRotation() {
+  camera.rotation.y = yaw;
+}
+
+// === Animation Loop ===
 function animate() {
   requestAnimationFrame(animate);
-  cube.rotation.y += 0.01;
+  updateMovement();
+  updateCameraRotation();
   renderer.render(scene, camera);
 }
 animate();
 
-// === Handle resize ===
+// === Resize Handling ===
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
