@@ -110,6 +110,13 @@ function findFarthestCell(sx,sz){
 const [exitX,exitZ] = findFarthestCell(0,0);
 const exitPos = { x:(exitX-mazeSize/2)*cellSize + cellSize/2, z:(exitZ-mazeSize/2)*cellSize + cellSize/2 };
 
+// Add exit beacon
+const beaconGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 16);
+const beaconMaterial = new THREE.MeshPhongMaterial({color:0x00ff00, emissive:0x00ff00});
+const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
+beacon.position.set(exitPos.x, 1, exitPos.z);
+scene.add(beacon);
+
 // Controls
 const moveSpeed=0.1, rotateSpeed=0.03, cameraRadius=0.3;
 const keys={};
@@ -128,7 +135,7 @@ function checkCollision(pos){
   return false;
 }
 
-// Animation loop
+// Animate
 function animate(){
   requestAnimationFrame(animate);
 
