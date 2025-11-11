@@ -33,7 +33,7 @@ floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
 // Maze parameters
-const mazeSize = 10;
+const mazeSize = 30;
 const cellSize = 2;
 const wallThickness = 0.2;
 const walls = [];
@@ -135,7 +135,7 @@ beacon.position.set(exitPos.x, beaconHeight/2, exitPos.z);
 scene.add(beacon);
 
 // Controls
-const moveSpeed=0.08, rotateSpeed=0.05, cameraRadius=0.3;
+const moveSpeed=0.08, rotateSpeed=0.06, cameraRadius=0.3;
 const keys={};
 document.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);
 document.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
@@ -154,15 +154,21 @@ function checkCollision(pos){
 
 // Background music
 const tracks = [
-  '1.mp3',
-  '2.mp3',
-  '3.mp3'
+  'audio/1.mp3',
+  'audio/2.mp3',
+  'audio/3.mp3'
 ];
 const audio = new Audio();
 audio.src = tracks[Math.floor(Math.random() * tracks.length)];
-audio.volume = 0.3;
+audio.volume = 0.2;
 audio.loop = true;
-audio.play().catch(e => console.log("Autoplay blocked by browser"));
+
+// Start music on first keypress (movement)
+function startMusicOnce() {
+    audio.play().catch(e => console.log("Autoplay blocked"));
+    document.removeEventListener('keydown', startMusicOnce);
+}
+document.addEventListener('keydown', startMusicOnce);
 
 // Animation loop
 function animate(){
