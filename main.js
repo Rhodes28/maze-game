@@ -294,6 +294,7 @@ function animate(time) {
   if (gameOver) { renderer.render(scene, camera); return; }
 
   if (!messageActive) {
+
     const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
     beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
     glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
@@ -325,9 +326,6 @@ function animate(time) {
     }
   }
 
-  renderer.render(scene, camera);
-}
-
   const [cx, cz] = worldPosToCell(player.position.x, player.position.z);
   for (let i = 0; i < slotPathIndices.length; i++) {
     if (slotTriggered[i]) continue;
@@ -343,6 +341,7 @@ function animate(time) {
 
   renderer.render(scene, camera);
 }
+
 requestAnimationFrame(animate);
 
 window.addEventListener('resize', () => {
