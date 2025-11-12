@@ -96,7 +96,13 @@ function getDeadEnds() {
   ));
 }
 const [spawnX, spawnZ] = getDeadEnds()[Math.floor(Math.random() * getDeadEnds().length)];
-camera.position.set((spawnX - mazeSize/2 + 0.5)*cellSize, 1.5, (spawnZ - mazeSize/2 + 0.5)*cellSize);
+
+// Player object for yaw (left/right)
+const player = new THREE.Object3D();
+player.position.set((spawnX - mazeSize/2 + 0.5)*cellSize, 0, (spawnZ - mazeSize/2 + 0.5)*cellSize);
+player.add(camera);
+camera.position.set(0, 1.5, 0); // relative to player
+scene.add(player);
 
 // Farthest cell (beacon)
 function findFarthestCell(sx, sz) {
@@ -161,14 +167,16 @@ function animate(time){
   walls.forEach(w=>w.material.emissiveIntensity=0.1+pulse*0.4);
   floor.material.envMapIntensity = 3 + Math.sin(time*0.001)*0.3;
 
-  if(keys['arrowleft']) camera.rotation.y += rotateSpeed;
-  if(keys['arrowright']) camera.rotation.y -= rotateSpeed;
-  if(keys['arrowup']) pitch = Math.min(pitch+rotateSpeed, Math.PI/2);
-  if(keys['arrowdown']) pitch = Math.max(pitch-rotateSpeed, -Math.PI/2);
+  // Camera rotation
+  if(keys['arrowleft']) player.rotation.y += rotateSpeed;
+  if(keys['arrowright']) player.rotation.y -= rotateSpeed;
+  if(keys['arrowup']) pitch = Math.min(pitch + rotateSpeed, Math.PI/2);
+  if(keys['arrowdown']) pitch = Math.max(pitch - rotateSpeed, -Math.PI/2);
   camera.rotation.x = pitch;
 
-  const forward = new THREE.Vector3(-Math.sin(camera.rotation.y),0,-Math.cos(camera.rotation.y));
-  const right = new THREE.Vector3().crossVectors(forward,new THREE.Vector3(0,1,0));
+  // Movement
+  const forward = new THREE.Vector3(0,0,-1).applyEuler(player.rotation);
+  const right = new THREE.Vector3(1,0,0).applyEuler(player.rotation);
   const moveVector = new THREE.Vector3();
   if(keys['w']) moveVector.add(forward);
   if(keys['s']) moveVector.add(forward.clone().multiplyScalar(-1));
@@ -176,22 +184,25 @@ function animate(time){
   if(keys['d']) moveVector.add(right);
   moveVector.normalize().multiplyScalar(moveSpeed);
 
-  const newPos = resolveCollision(camera.position.clone().add(moveVector));
-  const delta = newPos.distanceTo(camera.position);
+  const newPos = resolveCollision(player.position.clone().add(moveVector));
+  const delta = newPos.distanceTo(player.position);
   if(delta>0){
     walkedDistance+=delta;
     if(walkedDistance>=stepDistance){ playStepSound(); walkedDistance=0; }
-    camera.position.copy(newPos);
+    player.position.copy(newPos);
   }
 
-  if(camera.position.distanceTo(new THREE.Vector3(exitPos.x, camera.position.y, exitPos.z))<0.5)
+  // Check exit
+  if(player.position.distanceTo(new THREE.Vector3(exitPos.x, player.position.y, exitPos.z))<0.5)
     window.location.reload();
 
   renderer.render(scene, camera);
 }
+
 window.addEventListener('resize', ()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
 animate();
