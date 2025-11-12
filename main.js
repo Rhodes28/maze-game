@@ -1,4 +1,3 @@
-// Scene & Renderer
 const scene = new THREE.Scene();
 const cubeLoader = new THREE.CubeTextureLoader();
 const envMap = cubeLoader.load([
@@ -20,14 +19,12 @@ document.body.appendChild(renderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-// Lighting
 scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 scene.add(new THREE.HemisphereLight(0x88aaff, 0x080820, 0.5));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1);
 dirLight.position.set(10, 15, 10);
 scene.add(dirLight);
 
-// Materials
 const wallColor = new THREE.Color(0x222288);
 const floorColor = new THREE.Color(0x111122);
 
@@ -40,12 +37,10 @@ const reflectiveWallMaterial = new THREE.MeshStandardMaterial({
   emissive: wallColor, emissiveIntensity: 0.2
 });
 
-// Floor
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), reflectiveFloorMaterial);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// Maze setup
 const mazeSize = 28;
 const cellSize = 2;
 const wallThickness = 0.2;
@@ -54,7 +49,6 @@ const grid = Array.from({ length: mazeSize }, () => Array.from({ length: mazeSiz
   visited: false, walls: { top: true, right: true, bottom: true, left: true }
 })));
 
-// Maze generation
 function generateMaze(x, z) {
   grid[x][z].visited = true;
   const dirs = ['top', 'right', 'bottom', 'left'].sort(() => Math.random() - 0.5);
@@ -71,7 +65,6 @@ function generateMaze(x, z) {
 }
 generateMaze(0, 0);
 
-// Walls
 function addWall(x, z, width, depth) {
   const wall = new THREE.Mesh(new THREE.BoxGeometry(width, 2, depth), reflectiveWallMaterial.clone());
   wall.position.set(x, 1, z);
@@ -91,7 +84,6 @@ for (let x = 0; x < mazeSize; x++) {
   }
 }
 
-// Find dead ends
 function getDeadEnds() {
   return grid.flatMap((row, x) => row.flatMap((cell, z) =>
     Object.values(cell.walls).filter(Boolean).length === 3 ? [[x, z]] : []
@@ -100,14 +92,12 @@ function getDeadEnds() {
 const deadEnds = getDeadEnds();
 const [spawnX, spawnZ] = deadEnds[Math.floor(Math.random() * deadEnds.length)];
 
-// Player
 const player = new THREE.Object3D();
 player.position.set((spawnX - mazeSize / 2 + 0.5) * cellSize, 0, (spawnZ - mazeSize / 2 + 0.5) * cellSize);
 player.add(camera);
 camera.position.set(0, 1.5, 0);
 scene.add(player);
 
-// BFS (with parents)
 function bfsWithParents(sx, sz, tx, tz) {
   const dist = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const parent = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(null));
@@ -138,7 +128,6 @@ function bfsWithParents(sx, sz, tx, tz) {
   return path.reverse();
 }
 
-// Find farthest cell
 function findFarthestCell(sx, sz) {
   const dist = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const queue = [[sx, sz]]; dist[sx][sz] = 0;
@@ -163,7 +152,6 @@ function findFarthestCell(sx, sz) {
 const [exitX, exitZ] = findFarthestCell(spawnX, spawnZ);
 const exitPos = { x: (exitX - mazeSize / 2 + 0.5) * cellSize, z: (exitZ - mazeSize / 2 + 0.5) * cellSize };
 
-// Beacon
 const beaconHeight = 1000;
 const beaconMaterial = new THREE.MeshStandardMaterial({
   color: wallColor, emissive: wallColor, emissiveIntensity: 2, metalness: 0.8, roughness: 0.1
@@ -178,7 +166,6 @@ const glowCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, beaconH
 glowCylinder.position.set(exitPos.x, beaconHeight / 2, exitPos.z);
 scene.add(glowCylinder);
 
-// Movement setup
 const moveSpeed = 0.07, rotateSpeed = 0.05, pitchSpeed = 0.02, cameraRadius = 0.3;
 const keys = {};
 document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
@@ -199,13 +186,11 @@ function resolveCollision(pos) {
   return r;
 }
 
-// Audio
 const audio = new Audio('3.mp3'); audio.volume = 0.25; audio.loop = true; audio.play().catch(()=>{});
 const walkAudio = new Audio('walk.mp3'); walkAudio.volume = 0.25;
 let walkedDistance = 0, stepDistance = 2;
 function playStepSound() { walkAudio.cloneNode().play(); }
 
-// Fade overlay
 const fadeOverlay = document.createElement('div');
 Object.assign(fadeOverlay.style, {
   position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -213,7 +198,6 @@ Object.assign(fadeOverlay.style, {
 });
 document.body.appendChild(fadeOverlay);
 
-// Dialogue
 const MESSAGE_SLOTS = [
   "...",
   "A visitor?",
@@ -253,7 +237,6 @@ const MESSAGE_SLOTS = [
   "..."
 ];
 
-// Compute path
 const pathCells = bfsWithParents(spawnX, spawnZ, exitX, exitZ);
 const slots = MESSAGE_SLOTS.length;
 const slotPathIndices = [];
@@ -263,7 +246,6 @@ for (let i = 0; i < slots; i++) {
 }
 const slotTriggered = new Array(slots).fill(false);
 
-// Message box
 const messageBox = document.createElement('div');
 Object.assign(messageBox.style, {
   position: 'fixed',
@@ -306,38 +288,34 @@ function triggerSlot(i) {
   }, duration);
 }
 
-// Main loop
 let pitch = 0, gameOver = false;
 function animate(time) {
   requestAnimationFrame(animate);
   if (gameOver) { renderer.render(scene, camera); return; }
 
-  // Pulse
-  const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
-  beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
-  glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
-  walls.forEach(w => w.material.emissiveIntensity = 0.1 + pulse * 0.4);
-  floor.material.envMapIntensity = 3 + Math.sin(time * 0.001) * 0.3;
-
   if (!messageActive) {
-    // Camera rotation
-    if (keys['arrowleft']) player.rotation.y += 0.06;
-    if (keys['arrowright']) player.rotation.y -= 0.06;
-    if (keys['arrowup']) pitch = Math.min(pitch + 0.02, Math.PI / 2);
-    if (keys['arrowdown']) pitch = Math.max(pitch - 0.02, -Math.PI / 2);
+    const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
+    beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
+    glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
+    walls.forEach(w => w.material.emissiveIntensity = 0.1 + pulse * 0.4);
+    floor.material.envMapIntensity = 3 + Math.sin(time * 0.001) * 0.3;
+
+    if (keys['arrowleft']) player.rotation.y += rotateSpeed;
+    if (keys['arrowright']) player.rotation.y -= rotateSpeed;
+    if (keys['arrowup']) pitch = Math.min(pitch + pitchSpeed, Math.PI / 2);
+    if (keys['arrowdown']) pitch = Math.max(pitch - pitchSpeed, -Math.PI / 2);
     camera.rotation.x = pitch;
 
-    // Movement
     const forward = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
     const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
-    const move = new THREE.Vector3();
-    if (keys['w']) move.add(forward);
-    if (keys['s']) move.sub(forward);
-    if (keys['a']) move.sub(right);
-    if (keys['d']) move.add(right);
-    if (move.lengthSq() > 0) {
-      move.normalize().multiplyScalar(moveSpeed);
-      const newPos = resolveCollision(player.position.clone().add(move));
+    const moveVector = new THREE.Vector3();
+    if (keys['w']) moveVector.add(forward);
+    if (keys['s']) moveVector.sub(forward);
+    if (keys['a']) moveVector.sub(right);
+    if (keys['d']) moveVector.add(right);
+    if (moveVector.lengthSq() > 0) {
+      moveVector.normalize().multiplyScalar(moveSpeed);
+      const newPos = resolveCollision(player.position.clone().add(moveVector));
       const delta = newPos.distanceTo(player.position);
       if (delta > 0) {
         walkedDistance += delta;
@@ -347,7 +325,9 @@ function animate(time) {
     }
   }
 
-  // Dialogue check...
+  renderer.render(scene, camera);
+}
+
   const [cx, cz] = worldPosToCell(player.position.x, player.position.z);
   for (let i = 0; i < slotPathIndices.length; i++) {
     if (slotTriggered[i]) continue;
@@ -355,7 +335,6 @@ function animate(time) {
     if (cx === target[0] && cz === target[1]) { triggerSlot(i); break; }
   }
 
-  // Exit check
   if (player.position.distanceTo(new THREE.Vector3(exitPos.x, 0, exitPos.z)) < 0.5) {
     gameOver = true;
     audio.pause();
