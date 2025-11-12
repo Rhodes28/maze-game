@@ -156,13 +156,15 @@ const keys = {};
 document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-function checkCollision(pos) {
+function checkCollisionAxis(pos, axis) {
   for (const wall of walls) {
     const dx = Math.abs(pos.x - wall.position.x);
     const dz = Math.abs(pos.z - wall.position.z);
     const hw = wall.geometry.parameters.width / 2;
     const hd = wall.geometry.parameters.depth / 2;
-    if (dx < hw + cameraRadius && dz < hd + cameraRadius) return true;
+
+    if (axis === 'x' && dx < hw + cameraRadius && dz < hd + 0.01) return true;
+    if (axis === 'z' && dz < hd + cameraRadius && dx < hw + 0.01) return true;
   }
   return false;
 }
@@ -170,9 +172,7 @@ function checkCollision(pos) {
 const audio = new Audio('3.mp3');
 audio.volume = 0.25;
 audio.loop = true;
-audio.play().catch(() => {
-  console.log("Autoplay blocked: user interaction needed on this browser.");
-});
+audio.play().catch(() => console.log("Autoplay blocked: user interaction needed."));
 
 const walkAudio = new Audio('walk.mp3');
 walkAudio.volume = 0.25;
@@ -189,11 +189,7 @@ function animate(time) {
 
   const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
   beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
-
-  for (const wall of walls) {
-    wall.material.emissiveIntensity = 0.1 + pulse * 0.4;
-  }
-
+  for (const wall of walls) wall.material.emissiveIntensity = 0.1 + pulse * 0.4;
   floor.material.envMapIntensity = 3.0 + Math.sin(time * 0.001) * 0.3;
 
   if (keys['arrowleft']) camera.rotation.y += rotateSpeed;
@@ -201,16 +197,26 @@ function animate(time) {
 
   const forward = new THREE.Vector3(-Math.sin(camera.rotation.y), 0, -Math.cos(camera.rotation.y));
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
+
   let newPos = camera.position.clone();
   let movedThisFrame = false;
 
-  if (keys['w']) { const pos = newPos.clone().add(forward.clone().multiplyScalar(moveSpeed)); if (!checkCollision(pos)) { newPos.copy(pos); movedThisFrame = true; } }
-  if (keys['s']) { const pos = newPos.clone().add(forward.clone().multiplyScalar(-moveSpeed)); if (!checkCollision(pos)) { newPos.copy(pos); movedThisFrame = true; } }
-  if (keys['a']) { const pos = newPos.clone().add(right.clone().multiplyScalar(-moveSpeed)); if (!checkCollision(pos)) { newPos.copy(pos); movedThisFrame = true; } }
-  if (keys['d']) { const pos = newPos.clone().add(right.clone().multiplyScalar(moveSpeed)); if (!checkCollision(pos)) { newPos.copy(pos); movedThisFrame = true; } }
+  const moveVector = new THREE.Vector3();
+  if (keys['w']) moveVector.add(forward);
+  if (keys['s']) moveVector.add(forward.clone().multiplyScalar(-1));
+  if (keys['a']) moveVector.add(right.clone().multiplyScalar(-1));
+  if (keys['d']) moveVector.add(right);
+
+  moveVector.normalize().multiplyScalar(moveSpeed);
+
+  const posX = newPos.clone().add(new THREE.Vector3(moveVector.x, 0, 0));
+  if (!checkCollisionAxis(posX, 'x')) { newPos.x = posX.x; movedThisFrame = true; }
+
+  const posZ = newPos.clone().add(new THREE.Vector3(0, 0, moveVector.z));
+  if (!checkCollisionAxis(posZ, 'z')) { newPos.z = posZ.z; movedThisFrame = true; }
 
   const delta = newPos.distanceTo(camera.position);
-  if (delta > 0) {
+  if (movedThisFrame && delta > 0) {
     walkedDistance += delta;
     if (walkedDistance >= stepDistance) {
       playStepSound();
@@ -222,9 +228,7 @@ function animate(time) {
 
   const dx = camera.position.x - exitPos.x;
   const dz = camera.position.z - exitPos.z;
-  if (Math.sqrt(dx * dx + dz * dz) < 0.5) {
-    window.location.reload();
-  }
+  if (Math.sqrt(dx * dx + dz * dz) < 0.5) window.location.reload();
 
   renderer.render(scene, camera);
 }
