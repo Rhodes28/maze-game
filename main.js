@@ -10,11 +10,18 @@ function randomColor() {
 // Randomized color palette
 scene.background = randomColor(); // Background
 const floorColor = randomColor();
-const wallColor = randomColor();
+
+// Make the wall color a darker shade of the floor color (never pure black)
+const wallColor = floorColor.clone().offsetHSL(0, 0, -0.2);
 const beaconColor = randomColor();
 
 // Camera and renderer
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(
+  90, // wider FOV
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -24,7 +31,7 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(5, 10, 7);
 scene.add(light);
 
-// Floor (make sure it fully covers the maze)
+// Floor
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(200, 200),
   new THREE.MeshPhongMaterial({ color: floorColor })
@@ -47,7 +54,7 @@ for (let x = 0; x < mazeSize; x++) {
   }
 }
 
-// Maze generation (recursive backtracking)
+// Maze generation
 function generateMaze(x, z) {
   grid[x][z].visited = true;
   const dirs = ['top', 'right', 'bottom', 'left'].sort(() => Math.random() - 0.5);
@@ -162,8 +169,12 @@ audio.play().catch(() => {
 });
 
 // Animation loop
-function animate() {
+function animate(time) {
   requestAnimationFrame(animate);
+
+  // Pulsing beacon glow
+  const pulse = 0.5 + Math.sin(time * 0.002) * 0.5; // range 0–1
+  beacon.material.emissiveIntensity = 0.5 + pulse * 1.5; // 0.5–2 range
 
   if (keys['arrowleft']) camera.rotation.y += rotateSpeed;
   if (keys['arrowright']) camera.rotation.y -= rotateSpeed;
@@ -177,7 +188,7 @@ function animate() {
   if (keys['d']) { const pos = newPos.clone().add(right.clone().multiplyScalar(moveSpeed)); if (!checkCollision(pos)) newPos.copy(pos); }
   camera.position.copy(newPos);
 
-  // Win detection (auto-reload)
+  // Win detection
   const dx = camera.position.x - exitPos.x;
   const dz = camera.position.z - exitPos.z;
   if (Math.sqrt(dx * dx + dz * dz) < 0.5) {
