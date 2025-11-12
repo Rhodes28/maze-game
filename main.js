@@ -291,28 +291,29 @@ function triggerSlot(i) {
 
 let pitch = 0, gameOver = false;
 
-let pulseTime = 0;
+let pulseProgress = 0;
+let floorPulseProgress = 0;
 
 function animate(time) {
   requestAnimationFrame(animate);
   if (gameOver) { renderer.render(scene, camera); return; }
 
   if (!messageActive) {
-    pulseTime += 0.002 * (time - (animate.lastTime || time));
-    animate.lastTime = time;
+    pulseProgress += 0.002 * 16.67;
+    floorPulseProgress += 0.001 * 16.67;
 
-    const pulse = 0.5 + Math.sin(pulseTime) * 0.5;
+    const pulse = 0.5 + Math.sin(pulseProgress) * 0.5;
     beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
     glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
     walls.forEach(w => w.material.emissiveIntensity = 0.1 + pulse * 0.4);
-    floor.material.envMapIntensity = 3 + Math.sin(pulseTime * 0.5) * 0.3;
+    floor.material.envMapIntensity = 3 + Math.sin(floorPulseProgress) * 0.3;
 
     if (keys['arrowleft']) player.rotation.y += rotateSpeed;
     if (keys['arrowright']) player.rotation.y -= rotateSpeed;
     if (keys['arrowup']) pitch = Math.min(pitch + pitchSpeed, Math.PI / 2);
     if (keys['arrowdown']) pitch = Math.max(pitch - pitchSpeed, -Math.PI / 2);
     camera.rotation.x = pitch;
-    
+
     const forward = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
     const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
     const moveVector = new THREE.Vector3();
