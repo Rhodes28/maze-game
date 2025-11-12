@@ -8,10 +8,8 @@ function randomColor() {
 }
 
 // Randomized color palette
-scene.background = randomColor(); // Background
+scene.background = randomColor();
 const floorColor = randomColor();
-
-// Make the wall color a darker shade of the floor color (never pure black)
 const wallColor = floorColor.clone().offsetHSL(0, 0, -0.2);
 const beaconColor = randomColor();
 
@@ -22,14 +20,17 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Light
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 7);
-scene.add(light);
+// Lights
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.35); // soft fill light
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(5, 10, 7);
+scene.add(dirLight);
 
 // Floor
 const floor = new THREE.Mesh(
@@ -54,7 +55,7 @@ for (let x = 0; x < mazeSize; x++) {
   }
 }
 
-// Maze generation
+// Maze generation (recursive backtracking)
 function generateMaze(x, z) {
   grid[x][z].visited = true;
   const dirs = ['top', 'right', 'bottom', 'left'].sort(() => Math.random() - 0.5);
@@ -79,7 +80,12 @@ generateMaze(0, 0);
 // Add walls
 function addWall(x, z, width, depth) {
   const geometry = new THREE.BoxGeometry(width, 2, depth);
-  const wall = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: wallColor }));
+  const material = new THREE.MeshPhongMaterial({
+    color: wallColor,
+    shininess: 30,
+    specular: 0x222222
+  });
+  const wall = new THREE.Mesh(geometry, material);
   wall.position.set(x, 1, z);
   scene.add(wall);
   walls.push(wall);
@@ -159,7 +165,7 @@ function checkCollision(pos) {
   return false;
 }
 
-// Background music (auto-play)
+// Background music
 const tracks = ['1.mp3', '2.mp3', '3.mp3'];
 const audio = new Audio(tracks[Math.floor(Math.random() * tracks.length)]);
 audio.volume = 0.2;
@@ -173,8 +179,8 @@ function animate(time) {
   requestAnimationFrame(animate);
 
   // Pulsing beacon glow
-  const pulse = 0.5 + Math.sin(time * 0.002) * 0.5; // range 0–1
-  beacon.material.emissiveIntensity = 0.5 + pulse * 1.5; // 0.5–2 range
+  const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
+  beacon.material.emissiveIntensity = 0.5 + pulse * 1.5;
 
   if (keys['arrowleft']) camera.rotation.y += rotateSpeed;
   if (keys['arrowright']) camera.rotation.y -= rotateSpeed;
