@@ -1,17 +1,26 @@
 // Scene, camera, renderer
 const scene = new THREE.Scene();
 
-// Helper to get a random HSL color
-function randomColor() {
-  const hue = Math.random() * 360;
-  return new THREE.Color(`hsl(${hue}, 60%, 50%)`);
-}
+// Environment Map (Milky Way)
+const cubeLoader = new THREE.CubeTextureLoader();
+const envMap = cubeLoader.load([
+  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_px.jpg',
+  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_nx.jpg',
+  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_py.jpg',
+  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_ny.jpg',
+  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_pz.jpg',
+  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_nz.jpg'
+]);
+scene.background = envMap;
+scene.environment = envMap;
 
-// Randomized color palette
-scene.background = randomColor();
-const floorColor = randomColor();
-const wallColor = floorColor.clone().offsetHSL(0, 0, -0.2);
-const beaconColor = randomColor();
+// Lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(5, 10, 7);
+scene.add(dirLight);
 
 // Camera and renderer
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -22,30 +31,14 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
-// Add environment reflections
-const cubeLoader = new THREE.CubeTextureLoader();
-const envMap = cubeLoader.load([
-  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_px.jpg',
-  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_nx.jpg',
-  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_py.jpg',
-  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_ny.jpg',
-  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_pz.jpg',
-  'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_nz.jpg'
-]);
-scene.environment = envMap;
+// Materials
+const floorColor = new THREE.Color(0x202020);
+const wallColor = new THREE.Color(0x303030);
+const beaconColor = new THREE.Color(`hsl(${Math.random() * 360}, 80%, 60%)`);
 
-// Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-scene.add(ambientLight);
-
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-dirLight.position.set(5, 10, 7);
-scene.add(dirLight);
-
-// Reflective materials
 const reflectiveFloorMaterial = new THREE.MeshStandardMaterial({
   color: floorColor,
-  metalness: 0.95,
+  metalness: 1.0,
   roughness: 0.05,
   envMapIntensity: 1.5
 });
@@ -53,8 +46,8 @@ const reflectiveFloorMaterial = new THREE.MeshStandardMaterial({
 const reflectiveWallMaterial = new THREE.MeshStandardMaterial({
   color: wallColor,
   metalness: 0.9,
-  roughness: 0.1,
-  envMapIntensity: 1.2
+  roughness: 0.15,
+  envMapIntensity: 1.3
 });
 
 // Floor
