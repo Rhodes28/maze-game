@@ -34,7 +34,7 @@ Object.assign(titleScreen.style, {
 const startBox = document.createElement('div');
 Object.assign(startBox.style, {
   padding: '20px 60px',
-  borderRadius: '6px',
+  borderRadius: '0px',
   background: 'rgba(255,255,255,0.2)',
   color: 'white',
   fontFamily: 'sans-serif',
@@ -63,7 +63,6 @@ function startGame() {
   }
 }
 startBox.addEventListener('click', startGame);
-window.addEventListener('keydown', startGame);
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 scene.add(new THREE.HemisphereLight(0x88aaff, 0x080820, 0.5));
