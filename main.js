@@ -86,7 +86,7 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), reflectiveFloorM
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-const mazeSize = 28;
+const mazeSize = 30;
 const cellSize = 2;
 const wallThickness = 0.2;
 const walls = [];
@@ -276,15 +276,15 @@ const MESSAGE_SLOTS = [
 "Where are you headed?", 
 "That?", 
 "...", 
-"What. Does it trigger your curiosity?", 
+"Does it excite your curiosity?", 
 "Well of course it does.", 
 "However...", 
-"I'll have you know that it's entirely terrible!", 
+"I'll have you know that it's terrible!", 
 "There are other corners of this place to explore.", 
 "...", 
-"And yet you amble on towards it?", 
+"And yet you amble on into it?", 
 "Why?", 
-"Why not spend some time... pondering!", 
+"Why not spend some time here...", 
 "See the vast expanse above? Isn't it beautiful?", 
 "If there was any place to remain, wouldn't this be it?", 
 "...", 
@@ -299,7 +299,7 @@ const MESSAGE_SLOTS = [
 "...and still it would beckon.", 
 "Is that weakness?", 
 "Or perhaps strength?", 
-"Why?", 
+"I don't get it.", 
 "...", 
 "You humans...", 
 "...", 
