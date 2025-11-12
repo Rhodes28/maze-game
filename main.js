@@ -97,17 +97,18 @@ function addWall(x, z, width, depth) {
   walls.push(wall);
 }
 
+const overlap = wallThickness * 0.5;
+
 for (let x = 0; x < mazeSize; x++) {
   for (let z = 0; z < mazeSize; z++) {
     const cell = grid[x][z];
     const wx = (x - mazeSize / 2) * cellSize + cellSize / 2;
     const wz = (z - mazeSize / 2) * cellSize + cellSize / 2;
-    const extra = wallThickness;
 
-    if (cell.walls.top) addWall(wx, wz - cellSize / 2 - extra / 2, cellSize + wallThickness, wallThickness);
-    if (cell.walls.bottom) addWall(wx, wz + cellSize / 2 + extra / 2, cellSize + wallThickness, wallThickness);
-    if (cell.walls.left) addWall(wx - cellSize / 2 - extra / 2, wz, wallThickness, cellSize + wallThickness);
-    if (cell.walls.right) addWall(wx + cellSize / 2 + extra / 2, wz, wallThickness, cellSize + wallThickness);
+    if (cell.walls.top) addWall(wx, wz - cellSize / 2, cellSize + overlap, wallThickness);
+    if (cell.walls.bottom) addWall(wx, wz + cellSize / 2, cellSize + overlap, wallThickness);
+    if (cell.walls.left) addWall(wx - cellSize / 2, wz, wallThickness, cellSize + overlap);
+    if (cell.walls.right) addWall(wx + cellSize / 2, wz, wallThickness, cellSize + overlap);
   }
 }
 
@@ -158,15 +159,17 @@ const keys = {};
 document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-function checkCollisionAxis(pos, axis) {
+function checkCollision(pos) {
   for (const wall of walls) {
-    const dx = Math.abs(pos.x - wall.position.x);
-    const dz = Math.abs(pos.z - wall.position.z);
+    const dx = pos.x - wall.position.x;
+    const dz = pos.z - wall.position.z;
     const hw = wall.geometry.parameters.width / 2;
     const hd = wall.geometry.parameters.depth / 2;
 
-    if (axis === 'x' && dx < hw + cameraRadius && dz < hd + 0.01) return true;
-    if (axis === 'z' && dz < hd + cameraRadius && dx < hw + 0.01) return true;
+    const closestX = Math.max(-hw, Math.min(dx, hw));
+    const closestZ = Math.max(-hd, Math.min(dz, hd));
+    const distanceSq = (dx - closestX) ** 2 + (dz - closestZ) ** 2;
+    if (distanceSq < cameraRadius ** 2) return true;
   }
   return false;
 }
@@ -174,7 +177,7 @@ function checkCollisionAxis(pos, axis) {
 const audio = new Audio('3.mp3');
 audio.volume = 0.25;
 audio.loop = true;
-audio.play().catch(() => console.log("Autoplay blocked: user interaction needed."));
+audio.play().catch(() => console.log("Autoplay blocked"));
 
 const walkAudio = new Audio('walk.mp3');
 walkAudio.volume = 0.25;
@@ -200,9 +203,6 @@ function animate(time) {
   const forward = new THREE.Vector3(-Math.sin(camera.rotation.y), 0, -Math.cos(camera.rotation.y));
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
 
-  let newPos = camera.position.clone();
-  let movedThisFrame = false;
-
   const moveVector = new THREE.Vector3();
   if (keys['w']) moveVector.add(forward);
   if (keys['s']) moveVector.add(forward.clone().multiplyScalar(-1));
@@ -211,22 +211,19 @@ function animate(time) {
 
   moveVector.normalize().multiplyScalar(moveSpeed);
 
-  const posX = newPos.clone().add(new THREE.Vector3(moveVector.x, 0, 0));
-  if (!checkCollisionAxis(posX, 'x')) { newPos.x = posX.x; movedThisFrame = true; }
+  let newPos = camera.position.clone().add(moveVector);
 
-  const posZ = newPos.clone().add(new THREE.Vector3(0, 0, moveVector.z));
-  if (!checkCollisionAxis(posZ, 'z')) { newPos.z = posZ.z; movedThisFrame = true; }
-
-  const delta = newPos.distanceTo(camera.position);
-  if (movedThisFrame && delta > 0) {
-    walkedDistance += delta;
-    if (walkedDistance >= stepDistance) {
-      playStepSound();
-      walkedDistance = 0;
+  if (!checkCollision(newPos)) {
+    const delta = newPos.distanceTo(camera.position);
+    if (delta > 0) {
+      walkedDistance += delta;
+      if (walkedDistance >= stepDistance) {
+        playStepSound();
+        walkedDistance = 0;
+      }
+      camera.position.copy(newPos);
     }
   }
-
-  camera.position.copy(newPos);
 
   const dx = camera.position.x - exitPos.x;
   const dz = camera.position.z - exitPos.z;
