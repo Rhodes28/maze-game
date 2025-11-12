@@ -312,17 +312,22 @@ function animate(time) {
   requestAnimationFrame(animate);
   if (gameOver) { renderer.render(scene, camera); return; }
 
+  // Pulse
   const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
   beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
   glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
+  walls.forEach(w => w.material.emissiveIntensity = 0.1 + pulse * 0.4);
+  floor.material.envMapIntensity = 3 + Math.sin(time * 0.001) * 0.3;
 
   if (!messageActive) {
+    // Camera rotation
     if (keys['arrowleft']) player.rotation.y += 0.06;
     if (keys['arrowright']) player.rotation.y -= 0.06;
     if (keys['arrowup']) pitch = Math.min(pitch + 0.02, Math.PI / 2);
     if (keys['arrowdown']) pitch = Math.max(pitch - 0.02, -Math.PI / 2);
     camera.rotation.x = pitch;
 
+    // Movement
     const forward = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
     const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
     const move = new THREE.Vector3();
@@ -342,6 +347,7 @@ function animate(time) {
     }
   }
 
+  // Dialogue check...
   const [cx, cz] = worldPosToCell(player.position.x, player.position.z);
   for (let i = 0; i < slotPathIndices.length; i++) {
     if (slotTriggered[i]) continue;
@@ -349,6 +355,7 @@ function animate(time) {
     if (cx === target[0] && cz === target[1]) { triggerSlot(i); break; }
   }
 
+  // Exit check
   if (player.position.distanceTo(new THREE.Vector3(exitPos.x, 0, exitPos.z)) < 0.5) {
     gameOver = true;
     audio.pause();
