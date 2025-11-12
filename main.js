@@ -236,7 +236,7 @@ const MESSAGE_SLOTS = [
 "Well of course it does.", 
 "However...", 
 "I'll have you know that it's entirely terrible!", 
-"There are safer corners of this place to be explored.", 
+"There are safer corners of this place to explore.", 
 "...", 
 "And yet you amble on towards it?", 
 "Is any other prospect unbearable?", 
