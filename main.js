@@ -1,50 +1,52 @@
-// Scene setup
+// Scene, camera, renderer
 const scene = new THREE.Scene();
 
+// Helper to get a random HSL color
 function randomColor() {
   const hue = Math.random() * 360;
   return new THREE.Color(`hsl(${hue}, 60%, 50%)`);
 }
 
+// Randomized color palette
 scene.background = randomColor();
-const baseColor = randomColor();
-const wallColor = baseColor.clone().offsetHSL(0, 0, -0.25);
+const floorColor = randomColor();
+const wallColor = floorColor.clone().offsetHSL(0, 0, -0.2);
 const beaconColor = randomColor();
 
-// Camera + renderer
-const camera = new THREE.PerspectiveCamera(95, window.innerWidth / window.innerHeight, 0.1, 1000);
+// Camera and renderer
+const camera = new THREE.PerspectiveCamera(
+  90, // wider FOV
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.physicallyCorrectLights = true;
 document.body.appendChild(renderer.domElement);
 
-// Lighting
-scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+// Lights
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.35); // soft fill light
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
 dirLight.position.set(5, 10, 7);
 scene.add(dirLight);
 
-// Glossy material
-const glossyMaterial = new THREE.MeshPhysicalMaterial({
-  color: baseColor,
-  roughness: 0.25,
-  metalness: 0.3,
-  clearcoat: 0.9,
-  clearcoatRoughness: 0.05
-});
-
 // Floor
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), glossyMaterial);
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200),
+  new THREE.MeshPhongMaterial({ color: floorColor })
+);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// Maze setup
+// Maze parameters
 const mazeSize = 24;
 const cellSize = 2;
 const wallThickness = 0.2;
 const walls = [];
 
+// Grid setup
 const grid = [];
 for (let x = 0; x < mazeSize; x++) {
   grid[x] = [];
@@ -53,7 +55,7 @@ for (let x = 0; x < mazeSize; x++) {
   }
 }
 
-// Maze generation
+// Maze generation (recursive backtracking)
 function generateMaze(x, z) {
   grid[x][z].visited = true;
   const dirs = ['top', 'right', 'bottom', 'left'].sort(() => Math.random() - 0.5);
@@ -75,68 +77,37 @@ function generateMaze(x, z) {
 }
 generateMaze(0, 0);
 
-// Merge wall segments into continuous walls
-function addMergedWalls() {
-  const wallMaterial = glossyMaterial.clone();
-  wallMaterial.color = wallColor;
+// Add walls
+function addWall(x, z, width, depth) {
+  const geometry = new THREE.BoxGeometry(width, 2, depth);
+  const material = new THREE.MeshPhongMaterial({
+    color: wallColor,
+    shininess: 30,
+    specular: 0x222222
+  });
+  const wall = new THREE.Mesh(geometry, material);
+  wall.position.set(x, 1, z);
+  scene.add(wall);
+  walls.push(wall);
+}
 
-  // Horizontal walls
+// Place walls
+for (let x = 0; x < mazeSize; x++) {
   for (let z = 0; z < mazeSize; z++) {
-    let startX = null;
-    for (let x = 0; x < mazeSize; x++) {
-      const cell = grid[x][z];
-      if (cell.walls.top) {
-        if (startX === null) startX = x;
-      } else if (startX !== null) {
-        createWallSegment(startX, x - 1, z, 'h', wallMaterial);
-        startX = null;
-      }
-    }
-    if (startX !== null) createWallSegment(startX, mazeSize - 1, z, 'h', wallMaterial);
-  }
-
-  // Vertical walls
-  for (let x = 0; x < mazeSize; x++) {
-    let startZ = null;
-    for (let z = 0; z < mazeSize; z++) {
-      const cell = grid[x][z];
-      if (cell.walls.left) {
-        if (startZ === null) startZ = z;
-      } else if (startZ !== null) {
-        createWallSegment(x, x, startZ, 'v', wallMaterial, z - 1);
-        startZ = null;
-      }
-    }
-    if (startZ !== null) createWallSegment(x, x, startZ, 'v', wallMaterial, mazeSize - 1);
+    const cell = grid[x][z];
+    const wx = (x - mazeSize / 2) * cellSize + cellSize / 2;
+    const wz = (z - mazeSize / 2) * cellSize + cellSize / 2;
+    if (cell.walls.top) addWall(wx, wz - cellSize / 2, cellSize, wallThickness);
+    if (cell.walls.bottom) addWall(wx, wz + cellSize / 2, cellSize, wallThickness);
+    if (cell.walls.left) addWall(wx - cellSize / 2, wz, wallThickness, cellSize);
+    if (cell.walls.right) addWall(wx + cellSize / 2, wz, wallThickness, cellSize);
   }
 }
-
-function createWallSegment(x1, x2, z, orientation, mat, z2 = null) {
-  if (orientation === 'h') {
-    const length = (x2 - x1 + 1) * cellSize;
-    const wx = ((x1 + x2 + 1) / 2 - mazeSize / 2) * cellSize;
-    const wz = (z - mazeSize / 2) * cellSize - cellSize / 2;
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(length, 2, wallThickness), mat);
-    wall.position.set(wx, 1, wz);
-    scene.add(wall);
-    walls.push(wall);
-  } else {
-    const length = (z2 - z + 1) * cellSize;
-    const wx = (x1 - mazeSize / 2) * cellSize - cellSize / 2;
-    const wz = ((z + z2 + 1) / 2 - mazeSize / 2) * cellSize;
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, 2, length), mat);
-    wall.position.set(wx, 1, wz);
-    scene.add(wall);
-    walls.push(wall);
-  }
-}
-
-addMergedWalls();
 
 // Camera start
 camera.position.set(-mazeSize / 2 * cellSize + cellSize / 2, 1.5, -mazeSize / 2 * cellSize + cellSize / 2);
 
-// Farthest exit
+// Find farthest exit
 function findFarthestCell(sx, sz) {
   const distances = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const queue = [[sx, sz]];
@@ -166,16 +137,13 @@ const exitPos = { x: (exitX - mazeSize / 2) * cellSize + cellSize / 2, z: (exitZ
 
 // Exit beacon
 const beaconHeight = 100;
-const beacon = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.2, 0.2, beaconHeight, 16),
-  new THREE.MeshPhysicalMaterial({
-    color: beaconColor,
-    emissive: beaconColor,
-    emissiveIntensity: 2,
-    metalness: 1,
-    roughness: 0
-  })
-);
+const beaconGeometry = new THREE.CylinderGeometry(0.2, 0.2, beaconHeight, 16);
+const beaconMaterial = new THREE.MeshPhongMaterial({
+  color: beaconColor,
+  emissive: beaconColor,
+  emissiveIntensity: 1
+});
+const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
 beacon.position.set(exitPos.x, beaconHeight / 2, exitPos.z);
 scene.add(beacon);
 
@@ -185,6 +153,7 @@ const keys = {};
 document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
+// Collision detection
 function checkCollision(pos) {
   for (const wall of walls) {
     const dx = Math.abs(pos.x - wall.position.x);
@@ -196,18 +165,22 @@ function checkCollision(pos) {
   return false;
 }
 
-// Music
+// Background music
 const tracks = ['1.mp3', '2.mp3', '3.mp3'];
 const audio = new Audio(tracks[Math.floor(Math.random() * tracks.length)]);
-audio.volume = 0.25;
+audio.volume = 0.2;
 audio.loop = true;
-audio.play().catch(() => console.log("Autoplay blocked by browser."));
+audio.play().catch(() => {
+  console.log("Autoplay blocked: user interaction needed on this browser.");
+});
 
-// Animation
+// Animation loop
 function animate(time) {
   requestAnimationFrame(animate);
+
+  // Pulsing beacon glow
   const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
-  beacon.material.emissiveIntensity = 1.0 + pulse * 1.5;
+  beacon.material.emissiveIntensity = 0.5 + pulse * 1.5;
 
   if (keys['arrowleft']) camera.rotation.y += rotateSpeed;
   if (keys['arrowright']) camera.rotation.y -= rotateSpeed;
@@ -221,13 +194,17 @@ function animate(time) {
   if (keys['d']) { const pos = newPos.clone().add(right.clone().multiplyScalar(moveSpeed)); if (!checkCollision(pos)) newPos.copy(pos); }
   camera.position.copy(newPos);
 
+  // Win detection
   const dx = camera.position.x - exitPos.x;
   const dz = camera.position.z - exitPos.z;
-  if (Math.sqrt(dx * dx + dz * dz) < 0.5) window.location.reload();
+  if (Math.sqrt(dx * dx + dz * dz) < 0.5) {
+    window.location.reload();
+  }
 
   renderer.render(scene, camera);
 }
 
+// Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
