@@ -247,7 +247,7 @@ const MESSAGE_SLOTS = [
 "I guess...", 
 "No. You couldn't bear to.", 
 "That is not your nature.", 
-"Or perhaps it is not the nature of it.", 
+"Or perhaps that is not the nature of it.", 
 "What else is there to do, after all?", 
 "You could vacate here for weeks. Years. A millennium.", 
 "You could know every quirk of this zone, every fascinating little detail...", 
