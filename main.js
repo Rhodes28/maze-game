@@ -86,7 +86,7 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), reflectiveFloorM
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-const mazeSize = 30;
+const mazeSize = 32;
 const cellSize = 2;
 const wallThickness = 0.2;
 const walls = [];
@@ -276,13 +276,13 @@ const MESSAGE_SLOTS = [
 "Where are you headed?", 
 "That?", 
 "...", 
-"Does it excite your curiosity?", 
+"Does it spark your curiosity?", 
 "Well of course it does.", 
 "However...", 
 "I'll have you know that it's terrible!", 
 "There are other corners of this place to explore.", 
 "...", 
-"And yet you amble on into it?", 
+"And yet you amble on towards it?", 
 "Why?", 
 "Why not spend some time here...", 
 "See the vast expanse above? Isn't it beautiful?", 
