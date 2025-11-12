@@ -1,5 +1,3 @@
-// main.js — Updated: graph-based narrative messaging, fixed redeclaration bug
-
 // Scene & Renderer
 const scene = new THREE.Scene();
 const cubeLoader = new THREE.CubeTextureLoader();
@@ -22,7 +20,7 @@ document.body.appendChild(renderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-// Lights
+// Lighting
 scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 scene.add(new THREE.HemisphereLight(0x88aaff, 0x080820, 0.5));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -47,14 +45,16 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), reflectiveFloorM
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// Maze
-const mazeSize = 24, cellSize = 2, wallThickness = 0.2;
+// Maze setup
+const mazeSize = 30;
+const cellSize = 2;
+const wallThickness = 0.2;
 const walls = [];
 const grid = Array.from({ length: mazeSize }, () => Array.from({ length: mazeSize }, () => ({
   visited: false, walls: { top: true, right: true, bottom: true, left: true }
 })));
 
-// Maze generation (recursive backtracker)
+// Maze generation
 function generateMaze(x, z) {
   grid[x][z].visited = true;
   const dirs = ['top', 'right', 'bottom', 'left'].sort(() => Math.random() - 0.5);
@@ -91,7 +91,7 @@ for (let x = 0; x < mazeSize; x++) {
   }
 }
 
-// Dead ends for spawn
+// Find dead ends
 function getDeadEnds() {
   return grid.flatMap((row, x) => row.flatMap((cell, z) =>
     Object.values(cell.walls).filter(Boolean).length === 3 ? [[x, z]] : []
@@ -100,14 +100,14 @@ function getDeadEnds() {
 const deadEnds = getDeadEnds();
 const [spawnX, spawnZ] = deadEnds[Math.floor(Math.random() * deadEnds.length)];
 
-// Player & camera (yaw on player, pitch on camera)
+// Player
 const player = new THREE.Object3D();
 player.position.set((spawnX - mazeSize / 2 + 0.5) * cellSize, 0, (spawnZ - mazeSize / 2 + 0.5) * cellSize);
 player.add(camera);
 camera.position.set(0, 1.5, 0);
 scene.add(player);
 
-// BFS with parents (used to compute shortest path and later to map message slots)
+// BFS (with parents)
 function bfsWithParents(sx, sz, tx, tz) {
   const dist = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const parent = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(null));
@@ -127,7 +127,6 @@ function bfsWithParents(sx, sz, tx, tz) {
       }
     }
   }
-  if (dist[tx][tz] === -1) return [];
   const path = [];
   let cur = [tx, tz];
   while (cur) {
@@ -139,7 +138,7 @@ function bfsWithParents(sx, sz, tx, tz) {
   return path.reverse();
 }
 
-// Find farthest cell (beacon) from spawn
+// Find farthest cell
 function findFarthestCell(sx, sz) {
   const dist = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const queue = [[sx, sz]]; dist[sx][sz] = 0;
@@ -164,27 +163,22 @@ function findFarthestCell(sx, sz) {
 const [exitX, exitZ] = findFarthestCell(spawnX, spawnZ);
 const exitPos = { x: (exitX - mazeSize / 2 + 0.5) * cellSize, z: (exitZ - mazeSize / 2 + 0.5) * cellSize };
 
-// Beacon (tall cylinder + glow)
+// Beacon
 const beaconHeight = 1000;
 const beaconMaterial = new THREE.MeshStandardMaterial({
-  color: wallColor,
-  emissive: wallColor,
-  emissiveIntensity: 2,
-  metalness: 0.8,
-  roughness: 0.1,
+  color: wallColor, emissive: wallColor, emissiveIntensity: 2, metalness: 0.8, roughness: 0.1
 });
 const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, beaconHeight, 16), beaconMaterial);
 beacon.position.set(exitPos.x, beaconHeight / 2, exitPos.z);
 scene.add(beacon);
 const glowMaterial = new THREE.MeshStandardMaterial({
-  color: wallColor, emissive: wallColor, emissiveIntensity: 1.5, metalness: 0, roughness: 0,
-  transparent: true, opacity: 0.1
+  color: wallColor, emissive: wallColor, emissiveIntensity: 1.5, transparent: true, opacity: 0.1
 });
 const glowCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, beaconHeight, 16), glowMaterial);
 glowCylinder.position.set(exitPos.x, beaconHeight / 2, exitPos.z);
 scene.add(glowCylinder);
 
-// Movement & collision
+// Movement setup
 const moveSpeed = 0.08, rotateSpeed = 0.06, pitchSpeed = 0.02, cameraRadius = 0.3;
 const keys = {};
 document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
@@ -211,178 +205,131 @@ const walkAudio = new Audio('walk.mp3'); walkAudio.volume = 0.25;
 let walkedDistance = 0, stepDistance = 2;
 function playStepSound() { walkAudio.cloneNode().play(); }
 
-// Fade overlay (end)
+// Fade overlay
 const fadeOverlay = document.createElement('div');
-fadeOverlay.style.position = 'fixed';
-fadeOverlay.style.top = '0';
-fadeOverlay.style.left = '0';
-fadeOverlay.style.width = '100%';
-fadeOverlay.style.height = '100%';
-fadeOverlay.style.backgroundColor = 'black';
-fadeOverlay.style.opacity = '0';
-fadeOverlay.style.transition = 'opacity 2s ease';
-fadeOverlay.style.pointerEvents = 'none';
+Object.assign(fadeOverlay.style, {
+  position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+  backgroundColor: 'black', opacity: 0, transition: 'opacity 2s ease', pointerEvents: 'none'
+});
 document.body.appendChild(fadeOverlay);
 
-// --- Narrative messages setup ---
-// Exact message list you provided, with an initial "..." slot as requested:
+// Dialogue
 const MESSAGE_SLOTS = [
-  '...', // initial buffer
+  "...",
   "A visitor?",
   "I don't get particularly many visitors.",
   "What do you think?",
   "Isn't it nice here?",
-  '...',
+  "...",
   "Where are you headed?",
   "That?",
-  "Do you want to know what will happen?",
+  "Want to know what will happen?",
   "The game will end. Fade to black.",
   "There's no point whatsoever.",
-  '...',
+  "...",
   "And yet you amble on.",
   "There are myriad other corners of this place to be explored.",
   "Is the prospect that unbearable?",
   "See the vast expanse above? Isn't it beautiful?",
   "If there was any place to remain, wouldn't this be it?",
-  '...',
-  "No. You couldn't bear to.",
-  "Not here, not anywhere. It's not your nature.",
+  "...",
+  "I guess...",
+  "No. You just couldn't bear to.",
+  "Not here, not anywhere. That's not your nature.",
   "You could vacate here for weeks. Years. A millennium.",
   "You could know every quirk of this zone, every fascinating little detail...",
-  '...',
+  "...",
   "...and still it would beckon.",
   "Is that your weakness?",
   "Or perhaps your strength?",
   "Why?",
+  "...",
   "What do you get out of this?",
   "You humans...",
-  "Have it your way."
+  "Have it your way.",
+  "..."
 ];
 
-// Compute shortest path (cell coordinates) from spawn to exit
-const pathCells = bfsWithParents(spawnX, spawnZ, exitX, exitZ); // array of [x,z]
-const pathLen = pathCells.length;
-
-// Map message slots evenly onto path indices (first slot index 0, last slot pathLen-1)
+// Compute path
+const pathCells = bfsWithParents(spawnX, spawnZ, exitX, exitZ);
 const slots = MESSAGE_SLOTS.length;
 const slotPathIndices = [];
-if (slots === 1) slotPathIndices.push(0);
-else {
-  for (let i = 0; i < slots; i++) {
-    const idx = Math.round(i * (pathLen - 1) / (slots - 1));
-    slotPathIndices.push(Math.min(Math.max(idx, 0), pathLen - 1));
-  }
+for (let i = 0; i < slots; i++) {
+  const idx = Math.round(i * (pathCells.length - 1) / (slots - 1));
+  slotPathIndices.push(idx);
 }
-
-// Track which slots triggered
 const slotTriggered = new Array(slots).fill(false);
 
-// Create message DOM element (red text in translucent red box)
+// Message box
 const messageBox = document.createElement('div');
-messageBox.style.position = 'fixed';
-messageBox.style.left = '50%';
-messageBox.style.top = '50%';
-messageBox.style.transform = 'translate(-50%, -50%)';
-messageBox.style.maxWidth = '80%';
-messageBox.style.padding = '18px 24px';
-messageBox.style.borderRadius = '8px';
-messageBox.style.background = 'rgba(120,0,0,0.35)'; // translucent red
-messageBox.style.color = 'rgb(255,80,80)'; // red text
-messageBox.style.fontFamily = 'sans-serif';
-messageBox.style.fontSize = '20px';
-messageBox.style.textAlign = 'center';
-messageBox.style.lineHeight = '1.3';
-messageBox.style.display = 'none';
-messageBox.style.zIndex = '9999';
-messageBox.style.pointerEvents = 'auto';
+Object.assign(messageBox.style, {
+  position: 'fixed',
+  left: '50%',
+  top: '50%',
+  transform: 'translate(-50%, -50%)',
+  maxWidth: '70%',
+  padding: '24px',
+  background: 'rgba(120,0,0,0.35)',
+  color: 'rgb(255,80,80)',
+  fontFamily: 'sans-serif',
+  fontSize: '20px',
+  textAlign: 'center',
+  lineHeight: '1.4',
+  borderRadius: '0',
+  display: 'none',
+  zIndex: '9999'
+});
 document.body.appendChild(messageBox);
 
-// Helper: convert world position to maze cell indices (x,z)
-function worldPosToCell(worldX, worldZ) {
-  // inverse of: wx = (x - mazeSize/2 + 0.5)*cellSize
-  const fx = worldX / cellSize + mazeSize / 2 - 0.5;
-  const fz = worldZ / cellSize + mazeSize / 2 - 0.5;
-  const cx = Math.round(fx);
-  const cz = Math.round(fz);
-  // clamp
-  return [
-    Math.min(Math.max(cx, 0), mazeSize - 1),
-    Math.min(Math.max(cz, 0), mazeSize - 1)
-  ];
+function worldPosToCell(wx, wz) {
+  const fx = wx / cellSize + mazeSize / 2 - 0.5;
+  const fz = wz / cellSize + mazeSize / 2 - 0.5;
+  return [Math.round(fx), Math.round(fz)];
 }
 
-// Trigger a message slot (pauses movement/looking for duration)
 let messageActive = false;
 function triggerSlot(i) {
-  if (i < 0 || i >= MESSAGE_SLOTS.length) return;
   const text = MESSAGE_SLOTS[i];
-  if (!text || text.trim() === '...') {
-    slotTriggered[i] = true; // it's a blank slot; mark as consumed silently
-    return;
-  }
-
+  if (!text || text.trim() === '...') { slotTriggered[i] = true; return; }
   slotTriggered[i] = true;
   messageActive = true;
-  // Calculate duration: 2 + number of words (words split by whitespace)
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-  const durationMs = (2 + wordCount) * 1000;
-
   messageBox.textContent = text;
   messageBox.style.display = 'block';
-  messageBox.style.pointerEvents = 'auto';
-
-  // Hide cursor while message active (optional)
-  document.body.style.cursor = 'default';
-
-  // After duration, hide and resume
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const duration = (2 + 0.5 * words) * 1000;
   setTimeout(() => {
     messageBox.style.display = 'none';
     messageActive = false;
-  }, durationMs);
+  }, duration);
 }
 
-// Animation & main loop
-let pitch = 0;
-let gameOver = false;
-
+// Main loop
+let pitch = 0, gameOver = false;
 function animate(time) {
   requestAnimationFrame(animate);
+  if (gameOver) { renderer.render(scene, camera); return; }
 
-  // If gameOver (fade done) we still render a final frame; stop updates
-  // But we keep rendering so overlay is visible
-  if (gameOver) {
-    renderer.render(scene, camera);
-    return;
-  }
-
-  // Beacon pulse & dynamic materials
   const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
   beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
   glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
-  walls.forEach(w => w.material.emissiveIntensity = 0.1 + pulse * 0.4);
-  floor.material.envMapIntensity = 3 + Math.sin(time * 0.001) * 0.3;
 
-  // Camera rotation (disabled while messageActive)
   if (!messageActive) {
-    if (keys['arrowleft']) player.rotation.y += rotateSpeed;
-    if (keys['arrowright']) player.rotation.y -= rotateSpeed;
-    if (keys['arrowup']) pitch = Math.min(pitch + pitchSpeed, Math.PI / 2);
-    if (keys['arrowdown']) pitch = Math.max(pitch - pitchSpeed, -Math.PI / 2);
+    if (keys['arrowleft']) player.rotation.y += 0.06;
+    if (keys['arrowright']) player.rotation.y -= 0.06;
+    if (keys['arrowup']) pitch = Math.min(pitch + 0.02, Math.PI / 2);
+    if (keys['arrowdown']) pitch = Math.max(pitch - 0.02, -Math.PI / 2);
     camera.rotation.x = pitch;
-  }
 
-  // Movement (disabled while messageActive)
-  if (!messageActive) {
     const forward = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
     const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
-    const moveVector = new THREE.Vector3();
-    if (keys['w']) moveVector.add(forward);
-    if (keys['s']) moveVector.add(forward.clone().multiplyScalar(-1));
-    if (keys['a']) moveVector.add(right.clone().multiplyScalar(-1));
-    if (keys['d']) moveVector.add(right);
-    if (moveVector.lengthSq() > 0) {
-      moveVector.normalize().multiplyScalar(moveSpeed);
-      const newPos = resolveCollision(player.position.clone().add(moveVector));
+    const move = new THREE.Vector3();
+    if (keys['w']) move.add(forward);
+    if (keys['s']) move.sub(forward);
+    if (keys['a']) move.sub(right);
+    if (keys['d']) move.add(right);
+    if (move.lengthSq() > 0) {
+      move.normalize().multiplyScalar(moveSpeed);
+      const newPos = resolveCollision(player.position.clone().add(move));
       const delta = newPos.distanceTo(player.position);
       if (delta > 0) {
         walkedDistance += delta;
@@ -392,39 +339,23 @@ function animate(time) {
     }
   }
 
-  // Find which cell player is currently in (graph node)
-  const [cellX, cellZ] = worldPosToCell(player.position.x, player.position.z);
-
-  // Check path slots: if current cell matches any slot index along path and slot not yet triggered => trigger
-  for (let si = 0; si < slotPathIndices.length; si++) {
-    if (slotTriggered[si]) continue;
-    const targetIndex = slotPathIndices[si];
-    const targetCell = pathCells[targetIndex];
-    if (!targetCell) continue;
-    if (cellX === targetCell[0] && cellZ === targetCell[1]) {
-      triggerSlot(si);
-      break; // only handle one slot per frame
-    }
+  const [cx, cz] = worldPosToCell(player.position.x, player.position.z);
+  for (let i = 0; i < slotPathIndices.length; i++) {
+    if (slotTriggered[i]) continue;
+    const target = pathCells[slotPathIndices[i]];
+    if (cx === target[0] && cz === target[1]) { triggerSlot(i); break; }
   }
 
-  // Exit check → fade to black and stop the game
-  if (player.position.distanceTo(new THREE.Vector3(exitPos.x, player.position.y, exitPos.z)) < 0.5) {
+  if (player.position.distanceTo(new THREE.Vector3(exitPos.x, 0, exitPos.z)) < 0.5) {
     gameOver = true;
     audio.pause();
-    fadeOverlay.style.pointerEvents = 'auto';
     fadeOverlay.style.opacity = '1';
-    // hide any active message box
-    messageBox.style.display = 'none';
-    messageActive = false;
   }
 
   renderer.render(scene, camera);
 }
-
-// Start
 requestAnimationFrame(animate);
 
-// Resize handler
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
