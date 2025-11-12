@@ -314,15 +314,23 @@ let pulseProgress = 0, floorPulseProgress = 0;
 
 function animate(time) {
   requestAnimationFrame(animate);
-  if (gameOver) { renderer.render(scene, camera); return; }
+  if (gameOver) { 
+    renderer.render(scene, camera); 
+    return; 
+  }
 
   if (!messageActive) {
+    
     pulseProgress += 0.002 * 16.67;
     floorPulseProgress += 0.001 * 16.67;
 
     const pulse = 0.5 + Math.sin(pulseProgress) * 0.5;
+
     beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
     glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
+
+    reflectiveWallMaterial.emissiveIntensity = 0.1 + pulse * 0.4;
+
     floor.material.envMapIntensity = 3 + Math.sin(floorPulseProgress) * 0.3;
 
     if (keys['arrowleft']) player.rotation.y += rotateSpeed;
@@ -338,13 +346,17 @@ function animate(time) {
     if (keys['s']) moveVector.sub(forward);
     if (keys['a']) moveVector.sub(right);
     if (keys['d']) moveVector.add(right);
+
     if (moveVector.lengthSq() > 0) {
       moveVector.normalize().multiplyScalar(moveSpeed);
       const newPos = resolveCollision(player.position.clone().add(moveVector));
       const delta = newPos.distanceTo(player.position);
       if (delta > 0) {
         walkedDistance += delta;
-        if (walkedDistance >= stepDistance) { playStepSound(); walkedDistance = 0; }
+        if (walkedDistance >= stepDistance) { 
+          playStepSound(); 
+          walkedDistance = 0; 
+        }
         player.position.copy(newPos);
       }
     }
@@ -354,7 +366,10 @@ function animate(time) {
   for (let i = 0; i < slotPathIndices.length; i++) {
     if (slotTriggered[i]) continue;
     const target = pathCells[slotPathIndices[i]];
-    if (cx === target[0] && cz === target[1]) { triggerSlot(i); break; }
+    if (cx === target[0] && cz === target[1]) { 
+      triggerSlot(i); 
+      break; 
+    }
   }
 
   if (player.position.distanceTo(new THREE.Vector3(exitPos.x, 0, exitPos.z)) < 0.5) {
@@ -365,6 +380,7 @@ function animate(time) {
 
   renderer.render(scene, camera);
 }
+
 requestAnimationFrame(animate);
 
 window.addEventListener('resize', () => {
