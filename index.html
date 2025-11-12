@@ -7,9 +7,52 @@
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
+
+    #titleScreen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(circle at center, #000020 0%, #000010 80%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      z-index: 9999;
+      transition: opacity 1s ease;
+    }
+
+    #titleScreen h1 {
+      font-size: 3em;
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+      color: #88aaff;
+    }
+
+    #startButton {
+      background: none;
+      border: 2px solid #88aaff;
+      color: #88aaff;
+      padding: 12px 30px;
+      font-size: 1.2em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #startButton:hover {
+      background: #88aaff;
+      color: #000010;
+    }
   </style>
 </head>
 <body>
+  <div id="titleScreen">
+    <h1>Maze game</h1>
+    <button id="startButton">Start</button>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
   <script src="main.js"></script>
 </body>
