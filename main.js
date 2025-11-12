@@ -19,6 +19,52 @@ document.body.appendChild(renderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+const titleScreen = document.createElement('div');
+Object.assign(titleScreen.style, {
+  position: 'fixed',
+  top: 0, left: 0, width: '100%', height: '100%',
+  backgroundColor: 'black',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 99999,
+  transition: 'opacity 1s ease',
+  opacity: 1
+});
+const startBox = document.createElement('div');
+Object.assign(startBox.style, {
+  padding: '20px 60px',
+  borderRadius: '6px',
+  background: 'rgba(255,255,255,0.2)',
+  color: 'white',
+  fontFamily: 'sans-serif',
+  fontSize: '28px',
+  cursor: 'pointer',
+  userSelect: 'none'
+});
+startBox.textContent = 'Start';
+titleScreen.appendChild(startBox);
+document.body.appendChild(titleScreen);
+
+let gameStarted = false;
+let audioStarted = false;
+const audio = new Audio('3.mp3');
+audio.volume = 0.25;
+audio.loop = true;
+
+function startGame() {
+  if (gameStarted) return;
+  gameStarted = true;
+  titleScreen.style.opacity = '0';
+  setTimeout(() => { titleScreen.remove(); }, 1000);
+  if (!audioStarted) {
+    audio.play().catch(() => {});
+    audioStarted = true;
+  }
+}
+startBox.addEventListener('click', startGame);
+window.addEventListener('keydown', startGame);
+
 scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 scene.add(new THREE.HemisphereLight(0x88aaff, 0x080820, 0.5));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -204,7 +250,6 @@ function collideWall(pos, wx, wz, w, d) {
   }
 }
 
-const audio = new Audio('3.mp3'); audio.volume = 0.25; audio.loop = true; audio.play().catch(()=>{});
 const stepPool = Array.from({length: 3}, () => new Audio('walk.mp3'));
 stepPool.forEach(a => a.volume = 0.25);
 let stepIndex = 0;
@@ -314,13 +359,15 @@ let pulseProgress = 0, floorPulseProgress = 0;
 
 function animate(time) {
   requestAnimationFrame(animate);
+
+  if (!gameStarted) return;
+
   if (gameOver) { 
     renderer.render(scene, camera); 
     return; 
   }
 
   if (!messageActive) {
-    
     pulseProgress += 0.002 * 16.67;
     floorPulseProgress += 0.001 * 16.67;
 
@@ -328,9 +375,7 @@ function animate(time) {
 
     beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
     glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
-
     reflectiveWallMaterial.emissiveIntensity = 0.08 + pulse * 0.26;
-
     floor.material.envMapIntensity = 3 + Math.sin(floorPulseProgress) * 0.3;
 
     if (keys['arrowleft']) player.rotation.y += rotateSpeed;
