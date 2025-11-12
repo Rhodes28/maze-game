@@ -47,14 +47,14 @@ const reflectiveFloorMaterial = new THREE.MeshStandardMaterial({
   envMapIntensity: 3.0
 });
 
-// Walls: brighter with faint emissive glow
+// Walls: brighter, mirror-like, emissive pulse will be applied
 const reflectiveWallMaterial = new THREE.MeshStandardMaterial({
   color: wallColor,
-  metalness: 0.7,
-  roughness: 0.3,
+  metalness: 0.9,   // more mirror-like
+  roughness: 0.1,
   envMap: envMap,
-  envMapIntensity: 3.5,          // stronger reflection
-  emissive: new THREE.Color(0x111133), // faint bluish glow
+  envMapIntensity: 4.0,          // brighter reflections
+  emissive: new THREE.Color(0x222288), // faint bluish glow
   emissiveIntensity: 0.3
 });
 
@@ -103,7 +103,7 @@ generateMaze(0, 0);
 // Add walls
 function addWall(x, z, width, depth) {
   const geometry = new THREE.BoxGeometry(width, 2, depth);
-  const wall = new THREE.Mesh(geometry, reflectiveWallMaterial);
+  const wall = new THREE.Mesh(geometry, reflectiveWallMaterial.clone());
   wall.position.set(x, 1, z);
   scene.add(wall);
   walls.push(wall);
@@ -200,6 +200,11 @@ function animate(time) {
   // Beacon blue-purple pulse
   const pulse = 0.5 + Math.sin(time * 0.002) * 0.5;
   beacon.material.emissiveIntensity = 1 + pulse * 2;
+
+  // Walls pulse along with beacon
+  for (const wall of walls) {
+    wall.material.emissiveIntensity = 0.2 + pulse * 0.5;
+  }
 
   if (keys['arrowleft']) camera.rotation.y += rotateSpeed;
   if (keys['arrowright']) camera.rotation.y -= rotateSpeed;
