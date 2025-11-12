@@ -24,22 +24,21 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(5, 10, 7);
 scene.add(light);
 
-// Maze parameters
-const mazeSize = 20;
-const cellSize = 2;
-const wallThickness = 0.2;
-const floorSize = mazeSize * cellSize;
-const walls = [];
-
-// Floor
+// Floor (make sure it fully covers the maze)
 const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(floorSize, floorSize),
+  new THREE.PlaneGeometry(200, 200),
   new THREE.MeshPhongMaterial({ color: floorColor })
 );
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// Grid
+// Maze parameters
+const mazeSize = 24;
+const cellSize = 2;
+const wallThickness = 0.2;
+const walls = [];
+
+// Grid setup
 const grid = [];
 for (let x = 0; x < mazeSize; x++) {
   grid[x] = [];
@@ -48,13 +47,12 @@ for (let x = 0; x < mazeSize; x++) {
   }
 }
 
-// Maze generation
+// Maze generation (recursive backtracking)
 function generateMaze(x, z) {
   grid[x][z].visited = true;
   const dirs = ['top', 'right', 'bottom', 'left'].sort(() => Math.random() - 0.5);
   for (const dir of dirs) {
-    let nx = x,
-      nz = z;
+    let nx = x, nz = z;
     if (dir === 'top') nz -= 1;
     if (dir === 'bottom') nz += 1;
     if (dir === 'left') nx -= 1;
@@ -101,15 +99,11 @@ function findFarthestCell(sx, sz) {
   const distances = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const queue = [[sx, sz]];
   distances[sx][sz] = 0;
-  let farthest = [sx, sz],
-    maxDist = 0;
+  let farthest = [sx, sz], maxDist = 0;
   while (queue.length) {
     const [x, z] = queue.shift();
     const dist = distances[x][z];
-    if (dist > maxDist) {
-      maxDist = dist;
-      farthest = [x, z];
-    }
+    if (dist > maxDist) { maxDist = dist; farthest = [x, z]; }
     const neighbors = [];
     if (!grid[x][z].walls.top && z > 0) neighbors.push([x, z - 1]);
     if (!grid[x][z].walls.bottom && z < mazeSize - 1) neighbors.push([x, z + 1]);
@@ -126,32 +120,27 @@ function findFarthestCell(sx, sz) {
 }
 
 const [exitX, exitZ] = findFarthestCell(0, 0);
-const exitPos = {
-  x: (exitX - mazeSize / 2) * cellSize + cellSize / 2,
-  z: (exitZ - mazeSize / 2) * cellSize + cellSize / 2,
-};
+const exitPos = { x: (exitX - mazeSize / 2) * cellSize + cellSize / 2, z: (exitZ - mazeSize / 2) * cellSize + cellSize / 2 };
 
-// Create exit beacon
+// Exit beacon
 const beaconHeight = 100;
 const beaconGeometry = new THREE.CylinderGeometry(0.2, 0.2, beaconHeight, 16);
 const beaconMaterial = new THREE.MeshPhongMaterial({
   color: beaconColor,
   emissive: beaconColor,
-  emissiveIntensity: 1,
+  emissiveIntensity: 1
 });
 const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
 beacon.position.set(exitPos.x, beaconHeight / 2, exitPos.z);
 scene.add(beacon);
 
 // Controls
-const moveSpeed = 0.08,
-  rotateSpeed = 0.06,
-  cameraRadius = 0.3;
+const moveSpeed = 0.08, rotateSpeed = 0.06, cameraRadius = 0.3;
 const keys = {};
-document.addEventListener('keydown', (e) => (keys[e.key.toLowerCase()] = true));
-document.addEventListener('keyup', (e) => (keys[e.key.toLowerCase()] = false));
+document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-// Collision
+// Collision detection
 function checkCollision(pos) {
   for (const wall of walls) {
     const dx = Math.abs(pos.x - wall.position.x);
@@ -163,21 +152,13 @@ function checkCollision(pos) {
   return false;
 }
 
-// Background music
+// Background music (auto-play)
 const tracks = ['1.mp3', '2.mp3', '3.mp3'];
-const audio = new Audio();
-audio.src = tracks[Math.floor(Math.random() * tracks.length)];
+const audio = new Audio(tracks[Math.floor(Math.random() * tracks.length)]);
 audio.volume = 0.2;
 audio.loop = true;
-let audioStarted = false;
-
-// Start music on first movement keypress
-document.addEventListener('keydown', function (e) {
-  const movementKeys = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
-  if (!audioStarted && movementKeys.includes(e.key.toLowerCase())) {
-    audio.play().catch((err) => console.log('Autoplay blocked:', err));
-    audioStarted = true;
-  }
+audio.play().catch(() => {
+  console.log("Autoplay blocked: user interaction needed on this browser.");
 });
 
 // Animation loop
@@ -190,25 +171,13 @@ function animate() {
   const forward = new THREE.Vector3(-Math.sin(camera.rotation.y), 0, -Math.cos(camera.rotation.y));
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
   let newPos = camera.position.clone();
-  if (keys['w']) {
-    const pos = newPos.clone().add(forward.clone().multiplyScalar(moveSpeed));
-    if (!checkCollision(pos)) newPos.copy(pos);
-  }
-  if (keys['s']) {
-    const pos = newPos.clone().add(forward.clone().multiplyScalar(-moveSpeed));
-    if (!checkCollision(pos)) newPos.copy(pos);
-  }
-  if (keys['a']) {
-    const pos = newPos.clone().add(right.clone().multiplyScalar(-moveSpeed));
-    if (!checkCollision(pos)) newPos.copy(pos);
-  }
-  if (keys['d']) {
-    const pos = newPos.clone().add(right.clone().multiplyScalar(moveSpeed));
-    if (!checkCollision(pos)) newPos.copy(pos);
-  }
+  if (keys['w']) { const pos = newPos.clone().add(forward.clone().multiplyScalar(moveSpeed)); if (!checkCollision(pos)) newPos.copy(pos); }
+  if (keys['s']) { const pos = newPos.clone().add(forward.clone().multiplyScalar(-moveSpeed)); if (!checkCollision(pos)) newPos.copy(pos); }
+  if (keys['a']) { const pos = newPos.clone().add(right.clone().multiplyScalar(-moveSpeed)); if (!checkCollision(pos)) newPos.copy(pos); }
+  if (keys['d']) { const pos = newPos.clone().add(right.clone().multiplyScalar(moveSpeed)); if (!checkCollision(pos)) newPos.copy(pos); }
   camera.position.copy(newPos);
 
-  // Win detection - auto reload
+  // Win detection (auto-reload)
   const dx = camera.position.x - exitPos.x;
   const dz = camera.position.z - exitPos.z;
   if (Math.sqrt(dx * dx + dz * dz) < 0.5) {
