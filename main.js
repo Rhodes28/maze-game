@@ -267,6 +267,7 @@ Object.assign(fadeOverlay.style, {
 document.body.appendChild(fadeOverlay);
 
 const MESSAGE_SLOTS = [
+"...",
 "Oh?", 
 "A visitor?", 
 "I don't get particularly many visitors.", 
