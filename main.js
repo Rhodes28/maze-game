@@ -351,7 +351,7 @@ function triggerSlot(i) {
   messageBox.textContent = text;
   messageBox.style.display = 'block';
   const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const duration = (2 + 0.5 * words) * 1000;
+  const duration = (2 + 0.25 * words) * 1000;
   setTimeout(() => { messageBox.style.display = 'none'; messageActive = false; }, duration);
 }
 
