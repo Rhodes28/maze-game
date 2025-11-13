@@ -52,7 +52,6 @@ startBox.textContent = 'Start';
 titleScreen.appendChild(startBox);
 document.body.appendChild(titleScreen);
 
-// --- Dialogue toggle checkbox ---
 const dialogueToggle = document.createElement('label');
 dialogueToggle.style.color = 'white';
 dialogueToggle.style.fontFamily = 'sans-serif';
@@ -60,6 +59,8 @@ dialogueToggle.style.fontSize = '18px';
 dialogueToggle.style.marginTop = '20px';
 dialogueToggle.style.display = 'flex';
 dialogueToggle.style.alignItems = 'center';
+dialogueToggle.style.width = '100%';
+dialogueToggle.style.justifyContent = 'center';
 dialogueToggle.style.gap = '8px';
 dialogueToggle.style.userSelect = 'none';
 
@@ -83,6 +84,11 @@ container.appendChild(dialogueToggle);
 titleScreen.innerHTML = '';
 titleScreen.appendChild(container);
 document.body.appendChild(titleScreen);
+
+dialogueCheckbox.checked = localStorage.getItem('dialogueEnabled') !== 'false';
+dialogueCheckbox.addEventListener('change', () => {
+  localStorage.setItem('dialogueEnabled', dialogueCheckbox.checked);
+});
 
 let gameStarted = false;
 let audioStarted = false;
