@@ -291,7 +291,7 @@ const MESSAGE_SLOTS = [
 "I guess...", 
 "No. You couldn't bear to.", 
 "That is not your nature.", 
-"I hope that doesn't sound condescending..."
+"I hope that doesn't sound condescending...",
 "It's not that there's nothing else to do, I suppose.", 
 "You could vacate here for weeks. Years. A millennium.", 
 "You could know every quirk of this zone, every fascinating little thing to do...", 
