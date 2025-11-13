@@ -283,7 +283,7 @@ const MESSAGE_SLOTS = [
 "It will kill you! Don't approach it!", 
 "There are other corners of this place to explore.", 
 "...", 
-"Yet you insist? For what purpose?", 
+"Do you insist? For what purpose?", 
 "Why not spend some time here...", 
 "See the vast expanse above? Isn't it beautiful?", 
 "If there was any place to stay, wouldn't this be it?", 
