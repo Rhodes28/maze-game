@@ -409,9 +409,18 @@ Object.assign(distanceDisplay.style, {
   zIndex: '9999',
   pointerEvents: 'none',
   userSelect: 'none',
+  display: 'none',
 });
 distanceDisplay.textContent = '';
 document.body.appendChild(distanceDisplay);
+
+let showDistance = false;
+document.addEventListener('keydown', e => {
+  if (e.key === '`') {
+    showDistance = !showDistance;
+    distanceDisplay.style.display = showDistance ? 'block' : 'none';
+  }
+});
 
 let messageActive = false;
 function triggerSlot(i) {
@@ -451,7 +460,7 @@ function animate(time) {
     return;
   }
 
-  if (frameCount % 3 === 0) {
+  if (showDistance && frameCount % 3 === 0) {
     const [cx, cz] = worldPosToCell(player.position.x, player.position.z);
     const pathToBeacon = bfsWithParents(cx, cz, exitX, exitZ);
     distanceDisplay.textContent = pathToBeacon.length ? pathToBeacon.length - 1 : '';
