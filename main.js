@@ -56,11 +56,9 @@ const dialogueToggle = document.createElement('label');
 dialogueToggle.style.color = 'white';
 dialogueToggle.style.fontFamily = 'sans-serif';
 dialogueToggle.style.fontSize = '18px';
-dialogueToggle.style.marginTop = '20px';
+dialogueToggle.style.marginTop = '8px';
 dialogueToggle.style.display = 'flex';
 dialogueToggle.style.alignItems = 'center';
-dialogueToggle.style.width = '100%';
-dialogueToggle.style.justifyContent = 'center';
 dialogueToggle.style.gap = '8px';
 dialogueToggle.style.userSelect = 'none';
 
