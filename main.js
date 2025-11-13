@@ -14,12 +14,11 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.2;
 document.body.appendChild(renderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-// ---------- Title Screen ----------
 const titleScreen = document.createElement('div');
 Object.assign(titleScreen.style, {
   position: 'fixed',
@@ -65,16 +64,14 @@ function startGame() {
 }
 startBox.addEventListener('click', startGame);
 
-// ---------- Lighting ----------
 scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 scene.add(new THREE.HemisphereLight(0x88aaff, 0x080820, 0.5));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1);
 dirLight.position.set(10, 15, 10);
 scene.add(dirLight);
 
-// ---------- Colors & Materials ----------
 const wallColor = new THREE.Color(0x222288);
-const beaconColor = new THREE.Color(0x880808);
+const beaconColor = new THREE.Color(0x880808);  
 const floorColor = new THREE.Color(0x111122);
 
 const reflectiveFloorMaterial = new THREE.MeshStandardMaterial({
@@ -86,21 +83,17 @@ const reflectiveWallMaterial = new THREE.MeshStandardMaterial({
   emissive: wallColor, emissiveIntensity: 0.1
 });
 
-// ---------- Floor ----------
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), reflectiveFloorMaterial);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// ---------- Maze generation (same algorithm) ----------
 const mazeSize = 40;
 const cellSize = 2;
 const wallThickness = 0.2;
-const overlap = wallThickness; // kept like original
-const grid = Array.from({ length: mazeSize }, () =>
-  Array.from({ length: mazeSize }, () => ({
-    visited: false, walls: { top: true, right: true, bottom: true, left: true }
-  }))
-);
+const walls = [];
+const grid = Array.from({ length: mazeSize }, () => Array.from({ length: mazeSize }, () => ({
+  visited: false, walls: { top: true, right: true, bottom: true, left: true }
+})));
 
 function generateMaze(x, z) {
   grid[x][z].visited = true;
@@ -118,75 +111,43 @@ function generateMaze(x, z) {
 }
 generateMaze(0, 0);
 
-// ---------- Instanced Walls (huge perf win) ----------
-const singleWallWidth = wallThickness;
-const singleWallDepth = cellSize + overlap;
-const wallGeom = new THREE.BoxGeometry(singleWallWidth, 2, singleWallDepth);
-const estCount = mazeSize * mazeSize * 4; // safe upper bound
-const instancedWalls = new THREE.InstancedMesh(wallGeom, reflectiveWallMaterial, estCount);
-instancedWalls.instanceMatrix.setUsage(THREE.DynamicDrawUsage); // maybe update rarely
-scene.add(instancedWalls);
-
-let wallWriteIndex = 0;
-const mat = new THREE.Matrix4();
-const rotY = new THREE.Matrix4();
-
+function addWall(x, z, width, depth) {
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(width, 2, depth), reflectiveWallMaterial);
+  wall.position.set(x, 1, z);
+  scene.add(wall);
+  walls.push(wall);
+}
+const overlap = wallThickness;
 for (let x = 0; x < mazeSize; x++) {
   for (let z = 0; z < mazeSize; z++) {
     const cell = grid[x][z];
     const wx = (x - mazeSize / 2 + 0.5) * cellSize;
     const wz = (z - mazeSize / 2 + 0.5) * cellSize;
-
-    if (cell.walls.top) {
-      mat.identity();
-      mat.setPosition(new THREE.Vector3(wx, 1, wz - cellSize / 2));
-      instancedWalls.setMatrixAt(wallWriteIndex++, mat);
-    }
-    if (cell.walls.bottom) {
-      mat.identity();
-      mat.setPosition(new THREE.Vector3(wx, 1, wz + cellSize / 2));
-      instancedWalls.setMatrixAt(wallWriteIndex++, mat);
-    }
-    if (cell.walls.left) {
-      rotY.makeRotationY(Math.PI / 2);
-      mat.copy(rotY);
-      mat.setPosition(new THREE.Vector3(wx - cellSize / 2, 1, wz));
-      instancedWalls.setMatrixAt(wallWriteIndex++, mat);
-    }
-    if (cell.walls.right) {
-      rotY.makeRotationY(Math.PI / 2);
-      mat.copy(rotY);
-      mat.setPosition(new THREE.Vector3(wx + cellSize / 2, 1, wz));
-      instancedWalls.setMatrixAt(wallWriteIndex++, mat);
-    }
+    if (cell.walls.top) addWall(wx, wz - cellSize / 2, cellSize + overlap, wallThickness);
+    if (cell.walls.bottom) addWall(wx, wz + cellSize / 2, cellSize + overlap, wallThickness);
+    if (cell.walls.left) addWall(wx - cellSize / 2, wz, wallThickness, cellSize + overlap);
+    if (cell.walls.right) addWall(wx + cellSize / 2, wz, wallThickness, cellSize + overlap);
   }
 }
-instancedWalls.count = wallWriteIndex;
-instancedWalls.instanceMatrix.needsUpdate = true;
 
-// ---------- Utility: world->cell ----------
-function worldPosToCell(wx, wz) {
-  const fx = wx / cellSize + mazeSize / 2 - 0.5;
-  const fz = wz / cellSize + mazeSize / 2 - 0.5;
-  return [Math.round(fx), Math.round(fz)];
-}
-
-// ---------- Dead ends & spawn ----------
 function getDeadEnds() {
-  return grid.flatMap((row, x) =>
-    row.flatMap((cell, z) =>
-      Object.values(cell.walls).filter(Boolean).length === 3 ? [[x, z]] : []
-    )
-  );
+  return grid.flatMap((row, x) => row.flatMap((cell, z) =>
+    Object.values(cell.walls).filter(Boolean).length === 3 ? [[x, z]] : []
+  ));
 }
 const deadEnds = getDeadEnds();
 const [spawnX, spawnZ] = deadEnds[Math.floor(Math.random() * deadEnds.length)];
 
-// ---------- BFS helpers (path to exit & for messages) ----------
+const player = new THREE.Object3D();
+player.position.set((spawnX - mazeSize / 2 + 0.5) * cellSize, 0, (spawnZ - mazeSize / 2 + 0.5) * cellSize);
+player.add(camera);
+camera.position.set(0, 1.5, 0);
+scene.add(player);
+
 function bfsWithParents(sx, sz, tx, tz) {
   const dist = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const parent = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(null));
-  const queue = [[sx, sz]];
+  const queue = [[sx, sz]]; 
   let qi = 0;
   dist[sx][sz] = 0;
   const dirs = [['top', 0, -1], ['bottom', 0, 1], ['left', -1, 0], ['right', 1, 0]];
@@ -240,7 +201,6 @@ function findFarthestCell(sx, sz) {
 const [exitX, exitZ] = findFarthestCell(spawnX, spawnZ);
 const exitPos = { x: (exitX - mazeSize / 2 + 0.5) * cellSize, z: (exitZ - mazeSize / 2 + 0.5) * cellSize };
 
-// ---------- Beacon & glow ----------
 const beaconHeight = 1000;
 const beaconMaterial = new THREE.MeshStandardMaterial({
   color: beaconColor, emissive: beaconColor, emissiveIntensity: 2, metalness: 0.8, roughness: 0.1
@@ -248,7 +208,6 @@ const beaconMaterial = new THREE.MeshStandardMaterial({
 const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, beaconHeight, 8), beaconMaterial);
 beacon.position.set(exitPos.x, beaconHeight / 2, exitPos.z);
 scene.add(beacon);
-
 const glowMaterial = new THREE.MeshStandardMaterial({
   color: beaconColor, emissive: beaconColor, emissiveIntensity: 1.5, transparent: true, opacity: 0.1
 });
@@ -256,80 +215,51 @@ const glowCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, beaconH
 glowCylinder.position.set(exitPos.x, beaconHeight / 2, exitPos.z);
 scene.add(glowCylinder);
 
-// ---------- Player setup ----------
-const player = new THREE.Object3D();
-player.position.set((spawnX - mazeSize / 2 + 0.5) * cellSize, 0, (spawnZ - mazeSize / 2 + 0.5) * cellSize);
-player.add(camera);
-camera.position.set(0, 1.5, 0);
-scene.add(player);
-
-// movement params (unchanged)
 const moveSpeed = 0.07, rotateSpeed = 0.05, pitchSpeed = 0.02, cameraRadius = 0.3;
 const keys = {};
 document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-// ---------- Collision helpers (reused vectors, lighter math) ----------
-const forwardVec = new THREE.Vector3();
-const rightVec = new THREE.Vector3();
-const moveVec = new THREE.Vector3();
-const tmpPos = new THREE.Vector3();
-
 function resolveCollision(pos) {
-  tmpPos.copy(pos);
+  const r = pos.clone();
   const [cx, cz] = worldPosToCell(pos.x, pos.z);
   for (let dx = -1; dx <= 1; dx++) {
     for (let dz = -1; dz <= 1; dz++) {
       const nx = cx + dx, nz = cz + dz;
-      if (nx < 0 || nz < 0 || nx >= mazeSize || nz >= mazeSize) continue;
-      const cell = grid[nx][nz];
-      const wx = (nx - mazeSize / 2 + 0.5) * cellSize;
-      const wz = (nz - mazeSize / 2 + 0.5) * cellSize;
-      if (cell.walls.top) {
-        const wallZ = wz - cellSize/2;
-        const dzp = tmpPos.z - wallZ;
-        if (Math.abs(tmpPos.x - wx) < (cellSize/2 + cameraRadius) && dzp < cameraRadius && tmpPos.z > wallZ - cameraRadius) {
-          tmpPos.z = wallZ - cameraRadius;
-        }
-      }
-      if (cell.walls.bottom) {
-        const wallZ = wz + cellSize/2;
-        const dzp = tmpPos.z - wallZ;
-        if (Math.abs(tmpPos.x - wx) < (cellSize/2 + cameraRadius) && dzp > -cameraRadius && tmpPos.z < wallZ + cameraRadius) {
-          tmpPos.z = wallZ + cameraRadius;
-        }
-      }
-      if (cell.walls.left) {
-        const wallX = wx - cellSize/2;
-        const dxp = tmpPos.x - wallX;
-        if (Math.abs(tmpPos.z - wz) < (cellSize/2 + cameraRadius) && dxp < cameraRadius && tmpPos.x > wallX - cameraRadius) {
-          tmpPos.x = wallX - cameraRadius;
-        }
-      }
-      if (cell.walls.right) {
-        const wallX = wx + cellSize/2;
-        const dxp = tmpPos.x - wallX;
-        if (Math.abs(tmpPos.z - wz) < (cellSize/2 + cameraRadius) && dxp > -cameraRadius && tmpPos.x < wallX + cameraRadius) {
-          tmpPos.x = wallX + cameraRadius;
-        }
+      if (nx >= 0 && nx < mazeSize && nz >= 0 && nz < mazeSize) {
+        const cell = grid[nx][nz];
+        const wx = (nx - mazeSize / 2 + 0.5) * cellSize;
+        const wz = (nz - mazeSize / 2 + 0.5) * cellSize;
+        if (cell.walls.top) collideWall(r, wx, wz - cellSize/2, cellSize + overlap, wallThickness);
+        if (cell.walls.bottom) collideWall(r, wx, wz + cellSize/2, cellSize + overlap, wallThickness);
+        if (cell.walls.left) collideWall(r, wx - cellSize/2, wz, wallThickness, cellSize + overlap);
+        if (cell.walls.right) collideWall(r, wx + cellSize/2, wz, wallThickness, cellSize + overlap);
       }
     }
   }
-  return tmpPos;
+  return r;
+}
+function collideWall(pos, wx, wz, w, d) {
+  const dx = pos.x - wx, dz = pos.z - wz;
+  const closestX = Math.max(-w/2, Math.min(dx, w/2));
+  const closestZ = Math.max(-d/2, Math.min(dz, d/2));
+  const distX = dx - closestX, distZ = dz - closestZ;
+  if (Math.abs(distX) < cameraRadius && Math.abs(distZ) < cameraRadius) {
+    if (Math.abs(distX) > Math.abs(distZ)) pos.x += distX > 0 ? cameraRadius - distX : -cameraRadius - distX;
+    else pos.z += distZ > 0 ? cameraRadius - distZ : -cameraRadius - distZ;
+  }
 }
 
-// ---------- Footstep sounds (pool) ----------
 const stepPool = Array.from({length: 3}, () => new Audio('walk.mp3'));
 stepPool.forEach(a => a.volume = 0.40);
 let stepIndex = 0;
 let walkedDistance = 0, stepDistance = 2;
 function playStepSound() {
   const a = stepPool[stepIndex];
-  try { a.currentTime = 0; a.play(); } catch (e) {}
+  a.currentTime = 0; a.play();
   stepIndex = (stepIndex + 1) % stepPool.length;
 }
 
-// ---------- Fade overlay ----------
 const fadeOverlay = document.createElement('div');
 Object.assign(fadeOverlay.style, {
   position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -337,7 +267,6 @@ Object.assign(fadeOverlay.style, {
 });
 document.body.appendChild(fadeOverlay);
 
-// ---------- Messages (same slots) ----------
 const MESSAGE_SLOTS = [
 "...",
 "Oh? A visitor?", 
@@ -388,7 +317,6 @@ for (let i = 0; i < slots; i++) {
   slotPathIndices.push(Math.round(i * (pathCells.length - 1) / (slots - 1)));
 }
 const slotTriggered = new Array(slots).fill(false);
-
 const messageBox = document.createElement('div');
 Object.assign(messageBox.style, {
   position: 'fixed',
@@ -409,6 +337,12 @@ Object.assign(messageBox.style, {
 });
 document.body.appendChild(messageBox);
 
+function worldPosToCell(wx, wz) {
+  const fx = wx / cellSize + mazeSize / 2 - 0.5;
+  const fz = wz / cellSize + mazeSize / 2 - 0.5;
+  return [Math.round(fx), Math.round(fz)];
+}
+
 let messageActive = false;
 function triggerSlot(i) {
   const text = MESSAGE_SLOTS[i];
@@ -422,83 +356,72 @@ function triggerSlot(i) {
   setTimeout(() => { messageBox.style.display = 'none'; messageActive = false; }, duration);
 }
 
-// ---------- Gameplay state ----------
 let pitch = 0, gameOver = false;
-let pulseProgress = 0; // used with delta-time
+let pulseProgress = 0, floorPulseProgress = 0;
 
-// ---------- Message trigger helper uses pathCells ----------
-function checkMessageTriggers() {
-  const [cx, cz] = worldPosToCell(player.position.x, player.position.z);
-  for (let i = 0; i < slotPathIndices.length; i++) {
-    if (slotTriggered[i]) continue;
-    const target = pathCells[slotPathIndices[i]];
-    if (!target) { slotTriggered[i] = true; continue; }
-    if (cx === target[0] && cz === target[1]) {
-      triggerSlot(i);
-      break;
-    }
-  }
-}
-
-// ---------- Animate (delta-time, reuse vectors) ----------
-let prevTime = performance.now();
-function animate() {
-  const now = performance.now();
-  const dt = (now - prevTime) / 16.67; // normalized to 60fps steps
-  prevTime = now;
-
+function animate(time) {
   requestAnimationFrame(animate);
+
   if (!gameStarted) return;
 
-  if (gameOver) {
-    renderer.render(scene, camera);
-    return;
+  if (gameOver) { 
+    renderer.render(scene, camera); 
+    return; 
   }
 
   if (!messageActive) {
-    // pulse accumulator (use dt so pulses scale with framerate)
-    pulseProgress += 0.002 * 16.67 * dt;
+    pulseProgress += 0.002 * 16.67;
+    floorPulseProgress += 0.001 * 16.67;
+
     const pulse = 0.5 + Math.sin(pulseProgress) * 0.5;
 
     beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
     glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
     reflectiveWallMaterial.emissiveIntensity = 0.08 + pulse * 0.26;
-    floor.material.envMapIntensity = 3 + Math.sin(pulseProgress * 0.5) * 0.3;
+    floor.material.envMapIntensity = 3 + Math.sin(floorPulseProgress) * 0.3;
 
-    // rotation / pitch input
-    if (keys['arrowleft']) player.rotation.y += rotateSpeed * dt;
-    if (keys['arrowright']) player.rotation.y -= rotateSpeed * dt;
-    if (keys['arrowup']) pitch = Math.min(pitch + pitchSpeed * dt, Math.PI / 2);
-    if (keys['arrowdown']) pitch = Math.max(pitch - pitchSpeed * dt, -Math.PI / 2);
+    if (keys['arrowleft']) player.rotation.y += rotateSpeed;
+    if (keys['arrowright']) player.rotation.y -= rotateSpeed;
+    if (keys['arrowup']) pitch = Math.min(pitch + pitchSpeed, Math.PI / 2);
+    if (keys['arrowdown']) pitch = Math.max(pitch - pitchSpeed, -Math.PI / 2);
     camera.rotation.x = pitch;
 
-    // movement vector reuse
-    forwardVec.set(0, 0, -1).applyEuler(player.rotation);
-    rightVec.set(1, 0, 0).applyEuler(player.rotation);
-    moveVec.set(0, 0, 0);
-    if (keys['w']) moveVec.add(forwardVec);
-    if (keys['s']) moveVec.sub(forwardVec);
-    if (keys['a']) moveVec.sub(rightVec);
-    if (keys['d']) moveVec.add(rightVec);
+    const forward = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
+    const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
+    const moveVector = new THREE.Vector3();
+    if (keys['w']) moveVector.add(forward);
+    if (keys['s']) moveVector.sub(forward);
+    if (keys['a']) moveVector.sub(right);
+    if (keys['d']) moveVector.add(right);
 
-    if (moveVec.lengthSq() > 0) {
-      moveVec.normalize().multiplyScalar(moveSpeed * dt);
-      const targetPos = resolveCollision(player.position.clone().add(moveVec));
-      const delta = targetPos.distanceTo(player.position);
+    if (moveVector.lengthSq() > 0) {
+      moveVector.normalize().multiplyScalar(moveSpeed);
+      const newPos = resolveCollision(player.position.clone().add(moveVector));
+      const delta = newPos.distanceTo(player.position);
       if (delta > 0) {
         walkedDistance += delta;
-        if (walkedDistance >= stepDistance) { playStepSound(); walkedDistance = 0; }
-        player.position.copy(targetPos);
+        if (walkedDistance >= stepDistance) { 
+          playStepSound(); 
+          walkedDistance = 0; 
+        }
+        player.position.copy(newPos);
       }
     }
   }
 
-  checkMessageTriggers();
+  const [cx, cz] = worldPosToCell(player.position.x, player.position.z);
+  for (let i = 0; i < slotPathIndices.length; i++) {
+    if (slotTriggered[i]) continue;
+    const target = pathCells[slotPathIndices[i]];
+    if (cx === target[0] && cz === target[1]) { 
+      triggerSlot(i); 
+      break; 
+    }
+  }
 
-  // exit check (same threshold)
   if (player.position.distanceTo(new THREE.Vector3(exitPos.x, 0, exitPos.z)) < 0.5) {
     gameOver = true;
-    try { audio.pause(); } catch (e) {}
+    audio.pause();
     fadeOverlay.style.opacity = '1';
   }
 
@@ -507,7 +430,6 @@ function animate() {
 
 requestAnimationFrame(animate);
 
-// ---------- Resize ----------
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
