@@ -71,7 +71,7 @@ dirLight.position.set(10, 15, 10);
 scene.add(dirLight);
 
 const wallColor = new THREE.Color(0x222288);
-const beaconColor = new THREE.Color(0xff2222);  
+const beaconColor = new THREE.Color(0x880808);  
 const floorColor = new THREE.Color(0x111122);
 
 const reflectiveFloorMaterial = new THREE.MeshStandardMaterial({
@@ -87,7 +87,7 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), reflectiveFloorM
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-const mazeSize = 35;
+const mazeSize = 40;
 const cellSize = 2;
 const wallThickness = 0.2;
 const walls = [];
@@ -283,13 +283,13 @@ const MESSAGE_SLOTS = [
 "It will kill you! Don't approach it!", 
 "There are other corners of this place to explore.", 
 "...", 
-"Do you insist? For what purpose?", 
+"You insist? For what purpose?", 
 "Why not spend some time here...", 
 "See the vast expanse above? Isn't it beautiful?", 
 "If there was any place to stay, wouldn't this be it?", 
 "...", 
 "I guess...", 
-"No. You couldn't bear to!", 
+"No. You couldn't bear to.", 
 "That is not your nature.", 
 "I hope that doesn't sound condescending..."
 "It's not that there's nothing else to do, I suppose.", 
@@ -302,9 +302,9 @@ const MESSAGE_SLOTS = [
 "Or perhaps strength?", 
 "I don't get it!", 
 "...", 
-"It gets lonely here.",
 "...", 
 "You humans...", 
+"...",
 "...", 
 "Have it your way!", 
 "..."
