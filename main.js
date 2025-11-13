@@ -125,7 +125,7 @@ const reflectiveWallMaterial = new THREE.MeshStandardMaterial({
   emissive: wallColor, emissiveIntensity: 0.08
 });
 
-const mazeSize = 40;
+const mazeSize = 37;
 const cellSize = 2;
 const wallThickness = 0.2;
 const overlap = wallThickness;
