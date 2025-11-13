@@ -125,14 +125,20 @@ const reflectiveWallMaterial = new THREE.MeshStandardMaterial({
   emissive: wallColor, emissiveIntensity: 0.08
 });
 
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), reflectiveFloorMaterial);
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
-
 const mazeSize = 40;
 const cellSize = 2;
 const wallThickness = 0.2;
 const overlap = wallThickness;
+
+const floorSize = mazeSize * cellSize;
+
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(floorSize, floorSize),
+  reflectiveFloorMaterial
+);
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(0, 0, 0);
+scene.add(floor);
 
 const grid = Array.from({ length: mazeSize }, () => Array.from({ length: mazeSize }, () => ({
   visited: false, walls: { top: true, right: true, bottom: true, left: true }
