@@ -7,11 +7,17 @@ const envMap = cubeLoader.load([
   'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_ny.jpg',
   'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_pz.jpg',
   'https://threejs.org/examples/textures/cube/MilkyWay/dark-s_nz.jpg'
-]);
+], () => {
+  if (envMap && envMap.isCubeTexture) {
+    envMap.minFilter = THREE.LinearMipMapLinearFilter;
+    envMap.magFilter = THREE.LinearFilter;
+  }
+});
 scene.background = scene.environment = envMap;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5) * 0.75);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
@@ -64,14 +70,14 @@ function startGame() {
 }
 startBox.addEventListener('click', startGame);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-scene.add(new THREE.HemisphereLight(0x88aaff, 0x080820, 0.5));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+scene.add(new THREE.HemisphereLight(0x88aaff, 0x080820, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
 dirLight.position.set(10, 15, 10);
+dirLight.castShadow = false;
 scene.add(dirLight);
 
 const wallColor = new THREE.Color(0x222288);
-const beaconColor = new THREE.Color(0x880808);  
+const beaconColor = new THREE.Color(0x880808);
 const floorColor = new THREE.Color(0x111122);
 
 const reflectiveFloorMaterial = new THREE.MeshStandardMaterial({
@@ -80,7 +86,7 @@ const reflectiveFloorMaterial = new THREE.MeshStandardMaterial({
 
 const reflectiveWallMaterial = new THREE.MeshStandardMaterial({
   color: wallColor, metalness: 0.9, roughness: 0.1, envMap, envMapIntensity: 3,
-  emissive: wallColor, emissiveIntensity: 0.1
+  emissive: wallColor, emissiveIntensity: 0.08
 });
 
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), reflectiveFloorMaterial);
@@ -90,7 +96,8 @@ scene.add(floor);
 const mazeSize = 40;
 const cellSize = 2;
 const wallThickness = 0.2;
-const walls = [];
+const overlap = wallThickness;
+
 const grid = Array.from({ length: mazeSize }, () => Array.from({ length: mazeSize }, () => ({
   visited: false, walls: { top: true, right: true, bottom: true, left: true }
 })));
@@ -111,29 +118,61 @@ function generateMaze(x, z) {
 }
 generateMaze(0, 0);
 
-function addWall(x, z, width, depth) {
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(width, 2, depth), reflectiveWallMaterial);
-  wall.position.set(x, 1, z);
-  scene.add(wall);
-  walls.push(wall);
-}
-const overlap = wallThickness;
+const wallTransforms = [];
 for (let x = 0; x < mazeSize; x++) {
   for (let z = 0; z < mazeSize; z++) {
     const cell = grid[x][z];
     const wx = (x - mazeSize / 2 + 0.5) * cellSize;
     const wz = (z - mazeSize / 2 + 0.5) * cellSize;
-    if (cell.walls.top) addWall(wx, wz - cellSize / 2, cellSize + overlap, wallThickness);
-    if (cell.walls.bottom) addWall(wx, wz + cellSize / 2, cellSize + overlap, wallThickness);
-    if (cell.walls.left) addWall(wx - cellSize / 2, wz, wallThickness, cellSize + overlap);
-    if (cell.walls.right) addWall(wx + cellSize / 2, wz, wallThickness, cellSize + overlap);
+    if (cell.walls.top) wallTransforms.push({ x: wx, z: wz - cellSize / 2, w: cellSize + overlap, d: wallThickness });
+    if (cell.walls.bottom) wallTransforms.push({ x: wx, z: wz + cellSize / 2, w: cellSize + overlap, d: wallThickness });
+    if (cell.walls.left) wallTransforms.push({ x: wx - cellSize / 2, z: wz, w: wallThickness, d: cellSize + overlap });
+    if (cell.walls.right) wallTransforms.push({ x: wx + cellSize / 2, z: wz, w: wallThickness, d: cellSize + overlap });
+  }
+}
+
+const boxGeom = new THREE.BoxGeometry(1, 1, 1);
+const wallCount = wallTransforms.length;
+let wallsInstanced = null;
+if (wallCount > 0) {
+  wallsInstanced = new THREE.InstancedMesh(boxGeom, reflectiveWallMaterial, wallCount);
+  wallsInstanced.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const tmpMat = new THREE.Matrix4();
+  const tmpPos = new THREE.Vector3();
+  const tmpScale = new THREE.Vector3();
+  for (let i = 0; i < wallCount; i++) {
+    const t = wallTransforms[i];
+    tmpPos.set(t.x, 1, t.z); 
+    tmpScale.set(t.w, 2, t.d);   
+    tmpMat.compose(tmpPos, new THREE.Quaternion(), tmpScale);
+    wallsInstanced.setMatrixAt(i, tmpMat);
+  }
+  wallsInstanced.frustumCulled = true;
+  scene.add(wallsInstanced);
+}
+
+const cellWallLists = Array.from({ length: mazeSize }, () => Array.from({ length: mazeSize }, () => []));
+for (let x = 0; x < mazeSize; x++) {
+  for (let z = 0; z < mazeSize; z++) {
+    const cell = grid[x][z];
+    const wx = (x - mazeSize / 2 + 0.5) * cellSize;
+    const wz = (z - mazeSize / 2 + 0.5) * cellSize;
+    if (cell.walls.top) cellWallLists[x][z].push({ x: wx, z: wz - cellSize / 2, w: cellSize + overlap, d: wallThickness });
+    if (cell.walls.bottom) cellWallLists[x][z].push({ x: wx, z: wz + cellSize / 2, w: cellSize + overlap, d: wallThickness });
+    if (cell.walls.left) cellWallLists[x][z].push({ x: wx - cellSize / 2, z: wz, w: wallThickness, d: cellSize + overlap });
+    if (cell.walls.right) cellWallLists[x][z].push({ x: wx + cellSize / 2, z: wz, w: wallThickness, d: cellSize + overlap });
   }
 }
 
 function getDeadEnds() {
-  return grid.flatMap((row, x) => row.flatMap((cell, z) =>
-    Object.values(cell.walls).filter(Boolean).length === 3 ? [[x, z]] : []
-  ));
+  const de = [];
+  for (let x = 0; x < mazeSize; x++) {
+    for (let z = 0; z < mazeSize; z++) {
+      const wallsCount = Object.values(grid[x][z].walls).filter(Boolean).length;
+      if (wallsCount === 3) de.push([x, z]);
+    }
+  }
+  return de;
 }
 const deadEnds = getDeadEnds();
 const [spawnX, spawnZ] = deadEnds[Math.floor(Math.random() * deadEnds.length)];
@@ -147,7 +186,7 @@ scene.add(player);
 function bfsWithParents(sx, sz, tx, tz) {
   const dist = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const parent = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(null));
-  const queue = [[sx, sz]]; 
+  const queue = [[sx, sz]];
   let qi = 0;
   dist[sx][sz] = 0;
   const dirs = [['top', 0, -1], ['bottom', 0, 1], ['left', -1, 0], ['right', 1, 0]];
@@ -175,7 +214,6 @@ function bfsWithParents(sx, sz, tx, tz) {
   }
   return path.reverse();
 }
-
 function findFarthestCell(sx, sz) {
   const dist = Array.from({ length: mazeSize }, () => Array(mazeSize).fill(-1));
   const queue = [[sx, sz]]; let qi = 0;
@@ -198,6 +236,7 @@ function findFarthestCell(sx, sz) {
   }
   return farthest;
 }
+
 const [exitX, exitZ] = findFarthestCell(spawnX, spawnZ);
 const exitPos = { x: (exitX - mazeSize / 2 + 0.5) * cellSize, z: (exitZ - mazeSize / 2 + 0.5) * cellSize };
 
@@ -220,25 +259,38 @@ const keys = {};
 document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _moveVector = new THREE.Vector3();
+const _newPos = new THREE.Vector3();
+const _tempVec = new THREE.Vector3();
+const _exitVec = new THREE.Vector3(exitPos.x, 0, exitPos.z);
+const _tmpMatrix4 = new THREE.Matrix4();
+
+function worldPosToCell(wx, wz) {
+  const fx = wx / cellSize + mazeSize / 2 - 0.5;
+  const fz = wz / cellSize + mazeSize / 2 - 0.5;
+  return [Math.round(fx), Math.round(fz)];
+}
+
 function resolveCollision(pos) {
-  const r = pos.clone();
+  _tempVec.copy(pos);
   const [cx, cz] = worldPosToCell(pos.x, pos.z);
   for (let dx = -1; dx <= 1; dx++) {
     for (let dz = -1; dz <= 1; dz++) {
       const nx = cx + dx, nz = cz + dz;
       if (nx >= 0 && nx < mazeSize && nz >= 0 && nz < mazeSize) {
-        const cell = grid[nx][nz];
-        const wx = (nx - mazeSize / 2 + 0.5) * cellSize;
-        const wz = (nz - mazeSize / 2 + 0.5) * cellSize;
-        if (cell.walls.top) collideWall(r, wx, wz - cellSize/2, cellSize + overlap, wallThickness);
-        if (cell.walls.bottom) collideWall(r, wx, wz + cellSize/2, cellSize + overlap, wallThickness);
-        if (cell.walls.left) collideWall(r, wx - cellSize/2, wz, wallThickness, cellSize + overlap);
-        if (cell.walls.right) collideWall(r, wx + cellSize/2, wz, wallThickness, cellSize + overlap);
+        const list = cellWallLists[nx][nz];
+        for (let w = 0; w < list.length; w++) {
+          const wobj = list[w];
+          collideWall(_tempVec, wobj.x, wobj.z, wobj.w, wobj.d);
+        }
       }
     }
   }
-  return r;
+  return _tempVec;
 }
+
 function collideWall(pos, wx, wz, w, d) {
   const dx = pos.x - wx, dz = pos.z - wz;
   const closestX = Math.max(-w/2, Math.min(dx, w/2));
@@ -250,22 +302,23 @@ function collideWall(pos, wx, wz, w, d) {
   }
 }
 
-const stepPool = Array.from({length: 3}, () => new Audio('walk.mp3'));
-stepPool.forEach(a => a.volume = 0.40);
+const stepPool = Array.from({length: 3}, () => {
+  const a = new Audio('walk.mp3');
+  a.preload = 'auto';
+  try { a.load(); } catch(e) {}
+  a.volume = 0.40;
+  return a;
+});
 let stepIndex = 0;
 let walkedDistance = 0, stepDistance = 2;
 function playStepSound() {
   const a = stepPool[stepIndex];
-  a.currentTime = 0; a.play();
+  try {
+    a.currentTime = 0;
+    a.play().catch(() => {});
+  } catch (e) {}
   stepIndex = (stepIndex + 1) % stepPool.length;
 }
-
-const fadeOverlay = document.createElement('div');
-Object.assign(fadeOverlay.style, {
-  position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-  backgroundColor: 'black', opacity: 0, transition: 'opacity 2s ease', pointerEvents: 'none'
-});
-document.body.appendChild(fadeOverlay);
 
 const MESSAGE_SLOTS = [
 "...",
@@ -337,12 +390,6 @@ Object.assign(messageBox.style, {
 });
 document.body.appendChild(messageBox);
 
-function worldPosToCell(wx, wz) {
-  const fx = wx / cellSize + mazeSize / 2 - 0.5;
-  const fz = wz / cellSize + mazeSize / 2 - 0.5;
-  return [Math.round(fx), Math.round(fz)];
-}
-
 let messageActive = false;
 function triggerSlot(i) {
   const text = MESSAGE_SLOTS[i];
@@ -356,29 +403,40 @@ function triggerSlot(i) {
   setTimeout(() => { messageBox.style.display = 'none'; messageActive = false; }, duration);
 }
 
+const fadeOverlay = document.createElement('div');
+Object.assign(fadeOverlay.style, {
+  position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+  backgroundColor: 'black', opacity: 0, transition: 'opacity 2s ease', pointerEvents: 'none'
+});
+document.body.appendChild(fadeOverlay);
+
 let pitch = 0, gameOver = false;
 let pulseProgress = 0, floorPulseProgress = 0;
+let frameCount = 0;
 
 function animate(time) {
   requestAnimationFrame(animate);
 
   if (!gameStarted) return;
 
-  if (gameOver) { 
-    renderer.render(scene, camera); 
-    return; 
+  if (gameOver) {
+    renderer.render(scene, camera);
+    return;
   }
 
+  frameCount++;
+
   if (!messageActive) {
-    pulseProgress += 0.002 * 16.67;
-    floorPulseProgress += 0.001 * 16.67;
+    if (frameCount % 3 === 0) {
+      pulseProgress += 0.002 * 16.67;
+      floorPulseProgress += 0.001 * 16.67;
+      const pulse = 0.5 + Math.sin(pulseProgress) * 0.5;
 
-    const pulse = 0.5 + Math.sin(pulseProgress) * 0.5;
-
-    beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
-    glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
-    reflectiveWallMaterial.emissiveIntensity = 0.08 + pulse * 0.26;
-    floor.material.envMapIntensity = 3 + Math.sin(floorPulseProgress) * 0.3;
+      beacon.material.emissiveIntensity = 0.8 + pulse * 1.5;
+      glowCylinder.material.emissiveIntensity = 0.6 + pulse * 1.2;
+      reflectiveWallMaterial.emissiveIntensity = 0.08 + pulse * 0.26;
+      floor.material.envMapIntensity = 3 + Math.sin(floorPulseProgress) * 0.3;
+    }
 
     if (keys['arrowleft']) player.rotation.y += rotateSpeed;
     if (keys['arrowright']) player.rotation.y -= rotateSpeed;
@@ -386,25 +444,26 @@ function animate(time) {
     if (keys['arrowdown']) pitch = Math.max(pitch - pitchSpeed, -Math.PI / 2);
     camera.rotation.x = pitch;
 
-    const forward = new THREE.Vector3(0, 0, -1).applyEuler(player.rotation);
-    const right = new THREE.Vector3(1, 0, 0).applyEuler(player.rotation);
-    const moveVector = new THREE.Vector3();
-    if (keys['w']) moveVector.add(forward);
-    if (keys['s']) moveVector.sub(forward);
-    if (keys['a']) moveVector.sub(right);
-    if (keys['d']) moveVector.add(right);
+    _forward.set(0, 0, -1).applyEuler(player.rotation);
+    _right.set(1, 0, 0).applyEuler(player.rotation);
+    _moveVector.set(0, 0, 0);
+    if (keys['w']) _moveVector.add(_forward);
+    if (keys['s']) _moveVector.sub(_forward);
+    if (keys['a']) _moveVector.sub(_right);
+    if (keys['d']) _moveVector.add(_right);
 
-    if (moveVector.lengthSq() > 0) {
-      moveVector.normalize().multiplyScalar(moveSpeed);
-      const newPos = resolveCollision(player.position.clone().add(moveVector));
-      const delta = newPos.distanceTo(player.position);
+    if (_moveVector.lengthSq() > 0) {
+      _moveVector.normalize().multiplyScalar(moveSpeed);
+      _newPos.copy(player.position).add(_moveVector);
+      const resolved = resolveCollision(_newPos);
+      const delta = resolved.distanceTo(player.position);
       if (delta > 0) {
         walkedDistance += delta;
-        if (walkedDistance >= stepDistance) { 
-          playStepSound(); 
-          walkedDistance = 0; 
+        if (walkedDistance >= stepDistance) {
+          playStepSound();
+          walkedDistance = 0;
         }
-        player.position.copy(newPos);
+        player.position.copy(resolved);
       }
     }
   }
@@ -413,13 +472,14 @@ function animate(time) {
   for (let i = 0; i < slotPathIndices.length; i++) {
     if (slotTriggered[i]) continue;
     const target = pathCells[slotPathIndices[i]];
-    if (cx === target[0] && cz === target[1]) { 
-      triggerSlot(i); 
-      break; 
+    if (cx === target[0] && cz === target[1]) {
+      triggerSlot(i);
+      break;
     }
   }
 
-  if (player.position.distanceTo(new THREE.Vector3(exitPos.x, 0, exitPos.z)) < 0.5) {
+  _tempVec.set(exitPos.x, 0, exitPos.z);
+  if (player.position.distanceTo(_tempVec) < 0.5) {
     gameOver = true;
     audio.pause();
     fadeOverlay.style.opacity = '1';
