@@ -322,9 +322,9 @@ function playStepSound() {
 
 const MESSAGE_SLOTS = [
 "...", "Oh? A visitor?", "I don't get particularly many visitors.", "What do you think?", "I think it's nice here!", "...", "Where are you headed?", "That?", "...", "Does it spark your curiosity?", 
-"Well of course it does.", "However, you must know...", "It will kill you! Don't approach it!", "Yes! Kill!","There are other corners of this place to explore.", "...", "You insist? For what purpose?", 
-"Why not spend some time here...", "See the vast expanse above? Isn't it beautiful?", "If there was any place to stay, wouldn't this be it?", "...", "I guess...", "No. You couldn't bear to?", 
-"That is not your nature.", "I hope that doesn't sound condescending...","It's not that there's nothing else to do, I suppose.", "You could vacate here for weeks. Years. A millennium.", 
+"Well of course it does.", "However, you should know...", "It will kill you.", "Yes! Kill!","There are other corners of this place to explore.", "...", "Do you inist?", 
+"Why not spend some time here...", "See the vast expanse above? Isn't it beautiful?", "If there was any place to stay, wouldn't this be it?", "...", "I guess...", "No... You couldn't bear to?", 
+"I hope that doesn't sound condescending...","It's not that there's nothing else to do, I suppose.", "You could vacate here for weeks. Years. A millennium.", 
 "You could know every quirk of this zone, every fascinating little thing to do...", "...", "...and still it would beckon.", "Is that weakness?", "Or perhaps strength?", "I don't get it!", 
 "...", "...", "You humans...", "...","...", "Have it your way!", "..."
 ];
@@ -343,13 +343,13 @@ Object.assign(messageBox.style, {
   top: '50%',
   transform: 'translate(-50%, -50%)',
   maxWidth: '70%',
-  padding: '24px',
-  background: 'rgba(120,0,0,0.35)',
-  color: 'rgb(255,80,80)',
+  padding: '18px',
+  background: 'rgba(120,0,0,0.45)',
+  color: 'rgb(255,70,70)',
   fontFamily: 'sans-serif',
-  fontSize: '20px',
+  fontSize: '18px',
   textAlign: 'center',
-  lineHeight: '1.4',
+  lineHeight: '1.3',
   borderRadius: '0',
   display: 'none',
   zIndex: '9999'
