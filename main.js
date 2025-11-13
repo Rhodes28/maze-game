@@ -392,6 +392,21 @@ Object.assign(messageBox.style, {
 });
 document.body.appendChild(messageBox);
 
+const distanceDisplay = document.createElement('div');
+Object.assign(distanceDisplay.style, {
+  position: 'fixed',
+  top: '10px',
+  left: '14px',
+  color: 'red',
+  fontFamily: 'monospace',
+  fontSize: '22px',
+  zIndex: '9999',
+  pointerEvents: 'none',
+  userSelect: 'none',
+});
+distanceDisplay.textContent = '';
+document.body.appendChild(distanceDisplay);
+
 let messageActive = false;
 function triggerSlot(i) {
   if (!dialogueCheckbox.checked) {
@@ -428,6 +443,12 @@ function animate(time) {
   if (gameOver) {
     renderer.render(scene, camera);
     return;
+  }
+
+  if (frameCount % 6 === 0) {
+    const [cx, cz] = worldPosToCell(player.position.x, player.position.z);
+    const pathToBeacon = bfsWithParents(cx, cz, exitX, exitZ);
+    distanceDisplay.textContent = pathToBeacon.length ? pathToBeacon.length - 1 : '';
   }
 
   frameCount++;
